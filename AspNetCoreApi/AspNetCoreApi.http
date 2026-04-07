@@ -1,6 +1,24 @@
 @AspNetCoreApi_HostAddress = http://localhost:5030
 
-GET {{AspNetCoreApi_HostAddress}}/weatherforecast/
+GET {{AspNetCoreApi_HostAddress}}/api/events
 Accept: application/json
 
 ###
+POST {{AspNetCoreApi_HostAddress}}/api/events
+Content-Type: application/json
+Accept: application/json
+{
+  "title": "Открытие конференции1",
+  "startAt": "2025-07-15T10:00:00",
+  "endAt": "2026-07-15T18:00:00"
+}
+
+###
+PUT {{AspNetCoreApi_HostAddress}}/api/events/c99c47cb-d852-454f-bfe3-ea9fcf143dee
+Content-Type: application/json
+Accept: application/json
+{
+  "title": "Открытие конференции2",
+  "startAt": "2024-07-15T10:00:00",
+  "endAt": "2026-07-15T18:00:00"
+}
