@@ -23,6 +23,16 @@ namespace AspNetCoreApi.Services
             {
                 throw new ValidationException("Дата окончания (EndAt) должна быть позже даты начала (StartAt).");
             }
+
+            var eventToAdd = new Event
+            {
+                Id = Guid.NewGuid(),
+                Title = newEvent.Title,
+                Description = newEvent.Description,
+                StartAt = newEvent.StartAt,
+                EndAt = newEvent.EndAt
+            };
+
             _events.Add(newEvent);
             return newEvent;
         }
