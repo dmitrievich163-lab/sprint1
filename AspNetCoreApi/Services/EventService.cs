@@ -33,8 +33,8 @@ namespace AspNetCoreApi.Services
                 EndAt = newEvent.EndAt
             };
 
-            _events.Add(newEvent);
-            return newEvent;
+            _events.Add(eventToAdd);
+            return eventToAdd;
         }
 
         public Event Update(Guid id, Event updatedEvent)
