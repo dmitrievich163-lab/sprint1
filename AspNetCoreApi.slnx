@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AspNetCoreApi/AspNetCoreApi.csproj" />
+  <Project Path="EventService.Tests/EventService.Tests.csproj" />
+</Solution>

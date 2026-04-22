@@ -17,9 +17,14 @@ namespace AspNetCoreApi.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public IActionResult GetAll(
+        [FromQuery] string? title,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
         {
-            var events = _eventService.GetAll();
+            var events = _eventService.GetAll(title, from, to, page, pageSize);
             return Ok(events);
         }
 

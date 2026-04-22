@@ -1,6 +1,6 @@
 @AspNetCoreApi_HostAddress = http://localhost:5030
 
-GET {{AspNetCoreApi_HostAddress}}/api/events
+GET {{AspNetCoreApi_HostAddress}}/api/events?page=2
 Accept: application/json
 
 ###

@@ -5,11 +5,47 @@ namespace AspNetCoreApi.Services
 {
     public class EventService: IEventService
     {
-        private static readonly List<Event> _events = new();
+        private readonly List<Event> _events = new();
 
         public IEnumerable<Event> GetAll()
         {
             return _events;
+        }
+
+        public PaginatedResult<Event> GetAll(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
+        {
+            var query = _events.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                string lowerTitle = title.ToLower();
+                query = query.Where(e => e.Title.ToLower().Contains(lowerTitle));
+            }
+
+            if (from.HasValue)
+            {
+                query = query.Where(e => e.StartAt >= from.Value);
+            }
+
+            if (to.HasValue)
+            {
+                query = query.Where(e => e.EndAt <= to.Value);
+            }
+
+            int totalCount = query.Count();
+
+            var itemsOnPage = query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PaginatedResult<Event>
+            {
+                Items = itemsOnPage,
+                TotalCount = totalCount,
+                PageNumber = page,
+                PageSize = pageSize
+            };
         }
 
         public Event GetById(Guid id)
