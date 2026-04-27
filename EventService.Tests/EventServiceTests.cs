@@ -1,5 +1,6 @@
 ﻿using AspNetCoreApi.Models;
 using AspNetCoreApi.Services;
+using k8s.Models;
 using System.ComponentModel.DataAnnotations;
 using Xunit.Abstractions;
 
@@ -70,16 +71,27 @@ namespace EventServices.Tests
         }
 
         [Fact]
-        public void Delete()
+        public void Delete_ExistingEvent_ReturnsTrueAndEventIsRemoved()
         {
-            // Arrange
             var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
 
-            // Act
-            var delete = _service.Delete(created.Id);
-            var deleted = _service.GetById(created.Id);
-            // Assert
-            Assert.Null(deleted);
+            var result = _service.Delete(created.Id);
+            var exception = Record.Exception(() => _service.GetById(created.Id)); 
+            Assert.True(result); 
+            Assert.IsType<KeyNotFoundException>(exception); 
+        }
+
+        [Fact]
+        public void Delete_NonExistingEvent_ThrowsKeyNotFoundException()
+        {
+            var nonExistentId = Guid.NewGuid(); 
+
+            var exception = Assert.Throws<KeyNotFoundException>(() =>
+            {
+                _service.Delete(nonExistentId);
+            });
+
+            Assert.Contains(nonExistentId.ToString(), exception.Message);
         }
 
         [Fact]
@@ -188,19 +200,24 @@ namespace EventServices.Tests
 
 
         [Fact]
-        public void GetById_NonExistentId_ReturnsNull()
+        public void GetById_NonExistentId_ReturnsExcept()
         {
-            var result = _service.GetById(Guid.NewGuid());
 
-            Assert.Null(result);
+            var exception = Assert.Throws<KeyNotFoundException>(() =>
+            {
+                _service.GetById(Guid.NewGuid());
+            });
+
         }
 
         [Fact]
-        public void Update_NonExistentId_ReturnsNull()
+        public void Update_NonExistentId_ReturnsExcept()
         {
-            var result = _service.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now });
 
-            Assert.Null(result);
+            var exception = Assert.Throws<KeyNotFoundException>(() =>
+            {
+                _service.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now });
+            });
         }
 
         [Fact]

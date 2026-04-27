@@ -50,7 +50,13 @@ namespace AspNetCoreApi.Services
 
         public Event GetById(Guid id)
         {
-            return _events.FirstOrDefault(e => e.Id == id);
+            var eventItem = _events.FirstOrDefault(e => e.Id == id);
+            if (eventItem == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
+
+            return eventItem;
         }
 
         public Event Create(Event newEvent)
@@ -76,7 +82,10 @@ namespace AspNetCoreApi.Services
         public Event Update(Guid id, Event updatedEvent)
         {
             var existing = _events.FirstOrDefault(e => e.Id == id);
-            if (existing == null) return null;
+            if (existing == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
 
             if (updatedEvent.EndAt <= updatedEvent.StartAt)
             {
@@ -92,8 +101,12 @@ namespace AspNetCoreApi.Services
 
         public bool Delete(Guid id)
         {
+
             var existing = _events.FirstOrDefault(e => e.Id == id);
-            if (existing == null) return false;
+            if (existing == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
 
             return _events.Remove(existing);
         }

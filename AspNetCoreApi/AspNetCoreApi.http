@@ -1,6 +1,11 @@
 @AspNetCoreApi_HostAddress = http://localhost:5030
 
-GET {{AspNetCoreApi_HostAddress}}/api/events?page=2
+GET {{AspNetCoreApi_HostAddress}}/api/events
+Accept: application/json
+
+###
+
+GET {{AspNetCoreApi_HostAddress}}/api/events/cd1bc33a-00f4-4b98-b2bd-d0651b3f57ff
 Accept: application/json
 
 ###
@@ -14,11 +19,25 @@ Accept: application/json
 }
 
 ###
-PUT {{AspNetCoreApi_HostAddress}}/api/events/c99c47cb-d852-454f-bfe3-ea9fcf143dee
+POST {{AspNetCoreApi_HostAddress}}/api/events
 Content-Type: application/json
 Accept: application/json
 {
-  "title": "Открытие конференции2",
+  "startAt": "2025-07-15T10:00:00",
+  "endAt": "2024-07-15T18:00:00"
+}
+
+###
+PUT {{AspNetCoreApi_HostAddress}}/api/events/f0b8db07-8ec1-4df8-8ba5-c50d315e4c9c
+Content-Type: application/json
+Accept: application/json
+{
+  "title": "Открытие конференции3",
   "startAt": "2024-07-15T10:00:00",
   "endAt": "2026-07-15T18:00:00"
 }
+
+###
+DELETE {{AspNetCoreApi_HostAddress}}/api/events/6b90521c-c198-4fdb-a524-3f5e5412a097
+Content-Type: application/json
+Accept: application/json

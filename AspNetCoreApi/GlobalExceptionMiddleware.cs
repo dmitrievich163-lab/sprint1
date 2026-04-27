@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.WebUtilities;
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json;
 
@@ -32,9 +33,7 @@ namespace AspNetCoreApi
             HttpStatusCode status = HttpStatusCode.InternalServerError;
             string message = "An unexpected error occurred.";
 
-            _logger.LogError(exception, "An unhandled exception occurred.");
-
-            if (exception is ArgumentException || exception is InvalidOperationException)
+            if (exception is ArgumentException || exception is InvalidOperationException || exception is ValidationException)
             {
                 status = HttpStatusCode.BadRequest;
                 message = exception.Message;
