@@ -17,22 +17,21 @@ namespace AspNetCoreApi.Controllers
         }
 
         [HttpGet]
-        public IActionResult GetAll()
+        public IActionResult GetAll(
+        [FromQuery] string? title,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
         {
-            var events = _eventService.GetAll();
+            var events = _eventService.GetAll(title, from, to, page, pageSize);
             return Ok(events);
         }
 
         [HttpGet("{id:guid}")]
         public IActionResult GetById(Guid id)
         {
-            var eventItem = _eventService.GetById(id);
-
-            if (eventItem == null)
-            {
-                return NotFound();
-            }
-
+            var eventItem = _eventService.GetById(id); 
             return Ok(eventItem);
         }
 
@@ -41,56 +40,47 @@ namespace AspNetCoreApi.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
-            }
-            try
-            {
-                var createdEvent = _eventService.Create(newEvent);
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
 
-                return CreatedAtAction(nameof(GetById), new { id = createdEvent.Id }, createdEvent);
+                var errorMessage = "Validation failed: " + string.Join("; ", errors);
+
+                throw new ValidationException(errorMessage);
             }
-            catch (ValidationException ex)
-            {
-                ModelState.AddModelError("EndAt", ex.Message);
-                return BadRequest(ModelState);
-            }
+
+            var createdEvent = _eventService.Create(newEvent);
+            return CreatedAtAction(nameof(GetById), new { id = createdEvent.Id }, createdEvent);
         }
+            
+     
 
         [HttpPut("{id:guid}")]
         public IActionResult Update(Guid id, [FromBody] Event updatedEvent)
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+
+                var errorMessage = "Validation failed: " + string.Join("; ", errors);
+
+                throw new ValidationException(errorMessage);
             }
 
-            try
-            {
+          
                 var result = _eventService.Update(id, updatedEvent);
-
-                if (result == null)
-                {
-                    return NotFound();
-                }
 
                 return Ok(result);
             }
-            catch (ValidationException ex)
-            {
-                ModelState.AddModelError("EndAt", ex.Message);
-                return BadRequest(ModelState);
-            }
-        }
+        
 
         [HttpDelete("{id:guid}")]
         public IActionResult Delete(Guid id)
         {
             var deleted = _eventService.Delete(id);
 
-            if (!deleted)
-            {
-                return NotFound();
-            }
             return NoContent();
         }
     }

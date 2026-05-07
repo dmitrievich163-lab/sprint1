@@ -5,16 +5,58 @@ namespace AspNetCoreApi.Services
 {
     public class EventService: IEventService
     {
-        private static readonly List<Event> _events = new();
+        private readonly List<Event> _events = new();
 
         public IEnumerable<Event> GetAll()
         {
             return _events;
         }
 
+        public PaginatedResult<Event> GetAll(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
+        {
+            var query = _events.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                string lowerTitle = title.ToLower();
+                query = query.Where(e => e.Title.ToLower().Contains(lowerTitle));
+            }
+
+            if (from.HasValue)
+            {
+                query = query.Where(e => e.StartAt >= from.Value);
+            }
+
+            if (to.HasValue)
+            {
+                query = query.Where(e => e.EndAt <= to.Value);
+            }
+
+            int totalCount = query.Count();
+
+            var itemsOnPage = query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PaginatedResult<Event>
+            {
+                Items = itemsOnPage,
+                TotalCount = totalCount,
+                PageNumber = page,
+                PageSize = pageSize
+            };
+        }
+
         public Event GetById(Guid id)
         {
-            return _events.FirstOrDefault(e => e.Id == id);
+            var eventItem = _events.FirstOrDefault(e => e.Id == id);
+            if (eventItem == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
+
+            return eventItem;
         }
 
         public Event Create(Event newEvent)
@@ -40,7 +82,10 @@ namespace AspNetCoreApi.Services
         public Event Update(Guid id, Event updatedEvent)
         {
             var existing = _events.FirstOrDefault(e => e.Id == id);
-            if (existing == null) return null;
+            if (existing == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
 
             if (updatedEvent.EndAt <= updatedEvent.StartAt)
             {
@@ -56,8 +101,12 @@ namespace AspNetCoreApi.Services
 
         public bool Delete(Guid id)
         {
+
             var existing = _events.FirstOrDefault(e => e.Id == id);
-            if (existing == null) return false;
+            if (existing == null)
+            {
+                throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            }
 
             return _events.Remove(existing);
         }
