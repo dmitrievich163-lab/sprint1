@@ -16,7 +16,7 @@ namespace AspNetCoreApi.Controllers
             _eventService = eventService;
         }
 
-        [HttpPost("events/{id:guid}/book")]
+        [HttpPost("/api/events/{id:guid}/book")]
         [ProducesResponseType(StatusCodes.Status202Accepted)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CreateBooking(Guid id)

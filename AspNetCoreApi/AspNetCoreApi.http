@@ -5,11 +5,11 @@ Accept: application/json
 
 ###
 
-POST {{AspNetCoreApi_HostAddress}}/api/bookings/events/823d987a-661c-43b1-a5c7-2fdd1737825d/book
+POST {{AspNetCoreApi_HostAddress}}/api/events/91ee517e-943a-460a-a708-9371ed96a7b3/book
 Accept: application/json
 
 ###
-GET {{AspNetCoreApi_HostAddress}}/api/bookings/5eed4078-5161-4a75-bde7-b217b6145b68
+GET {{AspNetCoreApi_HostAddress}}/api/bookings/265af2cb-5859-420f-b6c3-a24f683e0d14
 Accept: application/json
 ###
 
