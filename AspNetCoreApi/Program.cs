@@ -9,6 +9,10 @@ builder.Services.AddControllers()
         options.SuppressModelStateInvalidFilter = true;
     });
 builder.Services.AddSingleton<IEventService, EventService>();
+builder.Services.AddSingleton<IBookingService, BookingService>();
+builder.Services.AddSingleton<InMemoryBookingRepository>();
+
+builder.Services.AddHostedService<BookingProcessingHostedService>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
