@@ -61,6 +61,9 @@ namespace AspNetCoreApi.Services
 
         public Event Create(Event newEvent)
         {
+            if (newEvent.TotalSeats <=0)
+                throw new ValidationException("TotalSeats is required.");
+
             if (newEvent.EndAt <= newEvent.StartAt)
             {
                 throw new ValidationException("Дата окончания (EndAt) должна быть позже даты начала (StartAt).");
@@ -72,7 +75,10 @@ namespace AspNetCoreApi.Services
                 Title = newEvent.Title,
                 Description = newEvent.Description,
                 StartAt = newEvent.StartAt,
-                EndAt = newEvent.EndAt
+                EndAt = newEvent.EndAt,
+                TotalSeats = newEvent.TotalSeats,
+                AvailableSeats = newEvent.TotalSeats
+
             };
 
             _events.Add(eventToAdd);
@@ -95,6 +101,7 @@ namespace AspNetCoreApi.Services
             existing.Description = updatedEvent.Description;
             existing.StartAt = updatedEvent.StartAt;
             existing.EndAt = updatedEvent.EndAt;
+            existing.AvailableSeats = updatedEvent.AvailableSeats;
 
             return existing;
         }

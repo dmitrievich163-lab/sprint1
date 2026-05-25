@@ -22,7 +22,7 @@ namespace EventServices.Tests
         [Fact]
         public void Create_AddsEventToCollection()
         {
-            var newEvent = new Event { Title = "Test Event", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) };
+            var newEvent = new Event { Title = "Test Event", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 };
             int initialCount = _service.GetAll().Count();
 
             var createdEvent = _service.Create(newEvent);
@@ -34,8 +34,8 @@ namespace EventServices.Tests
         [Fact]
         public void GetAll_ReturnsAllEvents()
         {
-            _service.Create(new Event { Title = "Event 1", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
-            _service.Create(new Event { Title = "Event 2", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            _service.Create(new Event { Title = "Event 1", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            _service.Create(new Event { Title = "Event 2", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             var events = _service.GetAll();
 
@@ -46,7 +46,7 @@ namespace EventServices.Tests
         public void GetById_ReturnsCorrectEvent()
         {
             // Arrange
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             // Act
             var found = _service.GetById(created.Id);
@@ -60,10 +60,10 @@ namespace EventServices.Tests
         public void Update()
         {
             // Arrange
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             // Act
-            var update = _service.Update(created.Id, new Event { Title = "Find Me update", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            var update = _service.Update(created.Id, new Event { Title = "Find Me update", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
             var found = _service.GetById(created.Id);
             // Assert
             Assert.NotNull(found);
@@ -73,7 +73,7 @@ namespace EventServices.Tests
         [Fact]
         public void Delete_ExistingEvent_ReturnsTrueAndEventIsRemoved()
         {
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             var result = _service.Delete(created.Id);
             var exception = Record.Exception(() => _service.GetById(created.Id)); 
@@ -97,8 +97,8 @@ namespace EventServices.Tests
         [Fact]
         public void FilterByTitle()
         {
-            _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
-            _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+            _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             var result = _service.GetAll(title: "конф");
 
@@ -109,8 +109,8 @@ namespace EventServices.Tests
         [Fact]
         public void FilterByStartDate()
         {
-            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
-            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now-TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(1) });
+            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now-TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             var result = _service.GetAll(from: created1.StartAt);
 
@@ -121,8 +121,8 @@ namespace EventServices.Tests
         [Fact]
         public void FilterByEndDate()
         {
-            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
-            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now - TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(48) });
+            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now - TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(48), TotalSeats = 1 });
 
             var result = _service.GetAll(to: created1.EndAt);
 
@@ -135,7 +135,7 @@ namespace EventServices.Tests
         {
             for (int i = 0; i < 25; i++)
             {
-                _service.Create(new Event { Title = $"Event {i}", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1) });
+                _service.Create(new Event { Title = $"Event {i}", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
             }
 
             var page1Result = _service.GetAll(page: 1, pageSize: 10);
@@ -155,28 +155,32 @@ namespace EventServices.Tests
             {
                 Title = "Семинар по дизайну",
                 StartAt = DateTime.Now.AddDays(-2),
-                EndAt = DateTime.Now.AddDays(5) 
+                EndAt = DateTime.Now.AddDays(5),
+                TotalSeats = 1
             });
 
             _service.Create(new Event
             {
                 Title = "Конференция по .NET", 
                 StartAt = DateTime.Now.AddDays(-10), 
-                EndAt = DateTime.Now.AddDays(-5)
+                EndAt = DateTime.Now.AddDays(-5),
+                TotalSeats = 1
             });
 
             _service.Create(new Event
             {
                 Title = "Конференция по .NET", 
                 StartAt = DateTime.Now.AddDays(1),
-                EndAt = DateTime.Now.AddDays(10)
+                EndAt = DateTime.Now.AddDays(10),
+                TotalSeats = 1
             });
 
             var expectedEvent = _service.Create(new Event
             {
                 Title = "Конференция по .NET",
                 StartAt = DateTime.Now.AddDays(-1), 
-                EndAt = DateTime.Now.AddDays(2)
+                EndAt = DateTime.Now.AddDays(2),
+                TotalSeats = 1
             });
 
 
@@ -216,7 +220,7 @@ namespace EventServices.Tests
 
             var exception = Assert.Throws<KeyNotFoundException>(() =>
             {
-                _service.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now });
+                _service.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now, TotalSeats = 1 });
             });
         }
 
@@ -227,7 +231,8 @@ namespace EventServices.Tests
             {
                 Title = "Некорректное событие",
                 StartAt = DateTime.Now.AddDays(1), 
-                EndAt = DateTime.Now               
+                EndAt = DateTime.Now,
+                TotalSeats = 1
             };
 
             var exception = Assert.Throws<ValidationException>(() => _service.Create(invalidEvent));
@@ -244,14 +249,16 @@ namespace EventServices.Tests
             {
                 Title = "Событие для обновления",
                 StartAt = DateTime.Now.AddDays(1), 
-                EndAt = DateTime.Now.AddDays(2)    
+                EndAt = DateTime.Now.AddDays(2),
+                TotalSeats = 1
             });
 
             var updatedData = new Event
             {
                 Title = "Новое название",
                 StartAt = DateTime.Now.AddDays(5), 
-                EndAt = DateTime.Now.AddDays(3)    
+                EndAt = DateTime.Now.AddDays(3),
+                TotalSeats = 1
             };
 
 

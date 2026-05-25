@@ -1,4 +1,6 @@
-﻿namespace AspNetCoreApi.Models
+﻿using AspNetCoreApi.Services;
+
+namespace AspNetCoreApi.Models
 {
     public class Booking
     {
@@ -27,6 +29,7 @@
         {
             Status = BookingStatus.Rejected;
             ProcessedAt = DateTime.UtcNow;
+
         }
     }
 }
