@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
+﻿using AspNetCoreApi.Exceptions;
+using Microsoft.AspNetCore.WebUtilities;
 using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json;
@@ -42,6 +43,12 @@ namespace AspNetCoreApi
             {
                 status = HttpStatusCode.NotFound;
                 message = exception.Message;
+            }
+            if (exception is NoAvailableSeatsException)
+            {
+                status = HttpStatusCode.Conflict;
+                message = exception.Message;
+
             }
 
             var problemDetails = new
