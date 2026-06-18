@@ -22,6 +22,15 @@ namespace AspNetCoreApi.Models
 
         public int AvailableSeats { get;  set; }
 
+        public Event()
+        {
+            Title = null!; // Инициализация required-свойства
+            Description = string.Empty; // Инициализация nullable-свойства
+            Bookings = new HashSet<Booking>(); // Обязательно инициализировать коллекции!
+        }
+
+        public virtual ICollection<Booking> Bookings { get; set; }
+
         public bool TryReserveSeats(int count = 1)
         {
             if (count <= 0) return false;

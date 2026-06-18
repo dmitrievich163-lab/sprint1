@@ -10,6 +10,13 @@ namespace AspNetCoreApi.Models
         public DateTime CreatedAt { get; private set; }
         public DateTime? ProcessedAt { get; private set; }
 
+        private Booking()
+        {
+            // Инициализируем коллекцию, если бы она была здесь
+            // Навигационное свойство Event может быть null, поэтому используем !
+            Event = null!;
+        }
+
         public Booking(Guid eventId)
         {
             Id = Guid.NewGuid();
@@ -18,6 +25,8 @@ namespace AspNetCoreApi.Models
             CreatedAt = DateTime.UtcNow;
             ProcessedAt = null;
         }
+
+        public virtual Event Event { get; set; } = null!;
 
         public void Confirm()
         {
