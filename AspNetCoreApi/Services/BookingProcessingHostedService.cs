@@ -1,22 +1,20 @@
-﻿using AspNetCoreApi.Models;
+﻿using AspNetCoreApi.DataAccess;
+using AspNetCoreApi.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace AspNetCoreApi.Services
 {
     public class BookingProcessingHostedService : BackgroundService
     {
-        private readonly InMemoryBookingRepository _bookingRepository;
-        private readonly IEventService _eventRepository;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<BookingProcessingHostedService> _logger;
 
-        private readonly SemaphoreSlim _processingSemaphore = new(1, 1);
 
         public BookingProcessingHostedService(
-            InMemoryBookingRepository bookingRepository,
-            IEventService eventRepository, 
+            IServiceScopeFactory scopeFactory,
             ILogger<BookingProcessingHostedService> logger)
         {
-            _bookingRepository = bookingRepository;
-            _eventRepository = eventRepository; 
+            _scopeFactory = scopeFactory;
             _logger = logger;
         }
 
@@ -28,17 +26,44 @@ namespace AspNetCoreApi.Services
             {
                 try
                 {
-                    var pendingBookings = _bookingRepository.GetAll()
+                    // Создаем scope для получения доступа к scoped-сервисам (DbContext, BookingService)
+                    using var scope = _scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+
+                    // 1. Находим ID всех бронирований со статусом Pending
+                    // Используем Select для оптимизации - загружаем только ID, а не все объекты целиком.
+                    var pendingBookingIds = await context.Bookings
+                        .AsNoTracking() // Не отслеживаем изменения, так как только читаем ID
                         .Where(b => b.Status == BookingStatus.Pending)
-                        .ToList();
+                        .Select(b => b.Id)
+                        .ToListAsync(stoppingToken);
 
-                    if (pendingBookings.Any())
+                    if (pendingBookingIds.Any())
                     {
-                        _logger.LogInformation($"Обнаружено {pendingBookings.Count} бронирований для обработки.");
+                        _logger.LogInformation($"Обнаружено {pendingBookingIds.Count} бронирований для обработки.");
 
-                        var processingTasks = pendingBookings.Select(booking =>
-                            ProcessBookingAsync(booking, stoppingToken)
-                        );
+                        // 2. Для каждой брони создаем отдельную задачу (и отдельный scope внутри)
+                        var processingTasks = pendingBookingIds.Select(async bookingId =>
+                        {
+                            // ВАЖНО: Создаем НОВЫЙ scope для каждой операции,
+                            // чтобы гарантировать атомарность и свой DbContext.
+                            using var processingScope = _scopeFactory.CreateScope();
+                            var scopedBookingService = processingScope.ServiceProvider.GetRequiredService<IBookingService>();
+                            var scopedLogger = processingScope.ServiceProvider.GetRequiredService<ILogger<BookingProcessingHostedService>>();
+
+                            try
+                            {
+                                scopedLogger.LogDebug($"Начало обработки брони {bookingId}");
+                                await scopedBookingService.ProcessPendingBookingAsync(bookingId);
+                                scopedLogger.LogInformation($"Бронь {bookingId} успешно обработана.");
+                            }
+                            catch (Exception ex) when (ex is not OperationCanceledException)
+                            {
+                                scopedLogger.LogError(ex, $"Ошибка при обработке брони {bookingId}.");
+                                // Логика отката должна быть внутри BookingService.ProcessPendingBookingAsync
+                            }
+                        });
 
                         await Task.WhenAll(processingTasks);
                     }
@@ -52,72 +77,6 @@ namespace AspNetCoreApi.Services
             }
 
             _logger.LogInformation("Фоновая обработка бронирований остановлена.");
-        }
-
-        private async Task ProcessBookingAsync(Booking booking, CancellationToken stoppingToken)
-        {
-            _logger.LogDebug($"Начало параллельной обработки брони {booking.Id}");
-
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
-
-                await _processingSemaphore.WaitAsync(stoppingToken);
-
-                stoppingToken.ThrowIfCancellationRequested();
-
-                if (booking.Status != BookingStatus.Pending)
-                {
-                    _logger.LogWarning($"Пропуск обработки брони {booking.Id}, так как её статус уже изменился на {booking.Status}.");
-                    return;
-                }
-
-                var @event = _eventRepository.GetById(booking.EventId);
-                if (@event == null)
-                {
-                    _logger.LogWarning($"Событие для брони {booking.Id} не найдено. Отклонение брони.");
-                    booking.Reject();
-                    _bookingRepository.Add(booking);
-                    return;
-                }
-
-                booking.Confirm();
-                _bookingRepository.Add(booking);
-
-                _logger.LogInformation($"Бронь {booking.Id} успешно обработана. Новый статус: {booking.Status}");
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogDebug($"Обработка брони {booking.Id} была отменена.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Ошибка при обработке брони {booking.Id}. Отмена операции.");
-
-                try
-                {
-                    if (booking.Status == BookingStatus.Pending)
-                    {
-                        booking.Reject();
-                        _bookingRepository.Add(booking);
-
-                        var @event = _eventRepository.GetById(booking.EventId);
-                        @event?.ReleaseSeats(1); 
-                        _eventRepository?.Update(@event.Id,@event); 
-                    }
-                }
-                catch (Exception innerEx)
-                {
-                    _logger.LogError(innerEx, $"Критическая ошибка при попытке откатить изменения для брони {booking.Id}.");
-                }
-            }
-            finally
-            {
-                if (_processingSemaphore.CurrentCount == 0)
-                {
-                    _processingSemaphore.Release();
-                }
-            }
         }
     }
 }

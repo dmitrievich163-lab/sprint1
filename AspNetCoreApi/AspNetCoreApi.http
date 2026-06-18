@@ -22,8 +22,8 @@ Content-Type: application/json
 Accept: application/json
 {
   "title": "Открытие конференции1",
-  "startAt": "2025-07-15T10:00:00",
-  "endAt": "2026-07-15T18:00:00",
+  "startAt": "2026-06-18T08:45:15.648Z",
+  "endAt": "2026-06-20T08:45:15.648Z",
   "totalSeats": 5
 }
 

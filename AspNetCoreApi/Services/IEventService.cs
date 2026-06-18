@@ -4,17 +4,17 @@ namespace AspNetCoreApi.Services
 {
     public interface IEventService
     {
-        IEnumerable<Event> GetAll();
-        PaginatedResult<Event> GetAll(
+        Task <IEnumerable<Event>> GetAll();
+        Task <PaginatedResult<Event>> GetAll(
        string? title = null,
        DateTime? from = null,
        DateTime? to = null,
        int page = 1,
        int pageSize = 10);
 
-        Event GetById(Guid id);
-        Event Create(Event newEvent);
-        Event Update(Guid id, Event updatedEvent);
-        bool Delete(Guid id);
+        Task <Event> GetById(Guid id);
+        Task<Event> Create(Event newEvent);
+        Task<Event> Update(Guid id, Event updatedEvent);
+        Task<bool> Delete(Guid id);
     }
 }

@@ -1,55 +1,83 @@
-﻿using AspNetCoreApi.Models;
+﻿using AspNetCoreApi.DataAccess;
+using AspNetCoreApi.Models;
 using AspNetCoreApi.Services;
-using k8s.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace EventServices.Tests
 {
     public class EventServiceTests
     {
-        private readonly EventService _service;
+        private readonly IServiceProvider _serviceProvider;
         private readonly ITestOutputHelper _output;
 
         public EventServiceTests(ITestOutputHelper output)
         {
             _output = output;
-            _service = new EventService();
+            var dbName = Guid.NewGuid().ToString(); // Уникальное имя для каждой сессии тестов
+
+            var services = new ServiceCollection();
+            services.AddDbContext<AspNetCoreApi.DataAccess.AppDbContext>(options =>
+                options.UseInMemoryDatabase(dbName)); // Используем InMemory-провайдер
+            services.AddScoped<IEventService, EventService>(); // Регистрируем сервис
+
+            _serviceProvider = services.BuildServiceProvider();
         }
 
         // --- УСПЕШНЫЕ СЦЕНАРИИ ---
 
         [Fact]
-        public void Create_AddsEventToCollection()
+        public async Task Create_AddsEventToCollection()
         {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
             var newEvent = new Event { Title = "Test Event", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 };
-            int initialCount = _service.GetAll().Count();
 
-            var createdEvent = _service.Create(newEvent);
+            var createdEvent = await eventService.Create(newEvent);
 
-            Assert.NotNull(createdEvent.Id); 
-            Assert.Equal(initialCount + 1, _service.GetAll().Count());
+            using var checkScope = _serviceProvider.CreateScope();
+            var dbContext = checkScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var eventInDb = await dbContext.Events.FindAsync(createdEvent.Id);
+
+            Assert.NotNull(eventInDb);
+            Assert.Equal("Test Event", eventInDb.Title);
         }
+    
+
+
+[Fact]
+public async Task GetAll_ReturnsAllEvents()
+{
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
+            await eventService.Create(new Event { Title = "Event 1", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            await eventService.Create(new Event { Title = "Event 2", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+
+    var events = await eventService.GetAll();
+
+    Assert.Equal(2, events.Count());
+}
 
         [Fact]
-        public void GetAll_ReturnsAllEvents()
+        public async Task GetById_ReturnsCorrectEvent()
         {
-            _service.Create(new Event { Title = "Event 1", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
-            _service.Create(new Event { Title = "Event 2", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var events = _service.GetAll();
-
-            Assert.Equal(2, events.Count());
-        }
-
-        [Fact]
-        public void GetById_ReturnsCorrectEvent()
-        {
             // Arrange
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created = await eventService.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             // Act
-            var found = _service.GetById(created.Id);
+            var found = await eventService.GetById(created.Id);
 
             // Assert
             Assert.NotNull(found);
@@ -57,89 +85,105 @@ namespace EventServices.Tests
         }
 
         [Fact]
-        public void Update()
+        public async Task Update()
         {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
             // Arrange
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created = await eventService.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
             // Act
-            var update = _service.Update(created.Id, new Event { Title = "Find Me update", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
-            var found = _service.GetById(created.Id);
+            var update = await eventService.Update(created.Id, new Event { Title = "Find Me update", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var found = await eventService.GetById(created.Id);
             // Assert
             Assert.NotNull(found);
             Assert.Equal(update.Title, found.Title);
         }
 
         [Fact]
-        public void Delete_ExistingEvent_ReturnsTrueAndEventIsRemoved()
+        public async Task Delete_ExistingEvent_ReturnsTrueAndEventIsRemoved()
         {
-            var created = _service.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var result = _service.Delete(created.Id);
-            var exception = Record.Exception(() => _service.GetById(created.Id)); 
-            Assert.True(result); 
-            Assert.IsType<KeyNotFoundException>(exception); 
+            var created = await eventService.Create(new Event { Title = "Find Me", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+
+            var result = await eventService.Delete(created.Id);
+            var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => eventService.GetById(created.Id));
+            Assert.True(result);
+            Assert.IsType<KeyNotFoundException>(exception);
         }
 
         [Fact]
-        public void Delete_NonExistingEvent_ThrowsKeyNotFoundException()
+        public async Task Delete_NonExistingEvent_ThrowsKeyNotFoundException()
         {
-            var nonExistentId = Guid.NewGuid(); 
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var exception = Assert.Throws<KeyNotFoundException>(() =>
-            {
-                _service.Delete(nonExistentId);
-            });
+            var nonExistentId = Guid.NewGuid();
 
+            var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => eventService.Delete(nonExistentId));
             Assert.Contains(nonExistentId.ToString(), exception.Message);
         }
 
         [Fact]
-        public void FilterByTitle()
+        public async Task FilterByTitle()
         {
-            _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
-            _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var result = _service.GetAll(title: "конф");
+            await eventService.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            await eventService.Create(new Event { Title = "Семинар", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+
+            var result = await eventService.GetAll(title: "конф");
 
             Assert.Single(result.Items);
             Assert.Equal("Конференция", result.Items.First().Title);
         }
 
         [Fact]
-        public void FilterByStartDate()
+        public async Task FilterByStartDate()
         {
-            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
-            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now-TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var result = _service.GetAll(from: created1.StartAt);
+            var created1 = await eventService.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created2 = await eventService.Create(new Event { Title = "Семинар", StartAt = DateTime.Now - TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+
+            var result = await eventService.GetAll(from: created1.StartAt);
 
             Assert.Single(result.Items);
             Assert.Equal(created1.StartAt, result.Items.First().StartAt);
         }
 
         [Fact]
-        public void FilterByEndDate()
+        public async Task FilterByEndDate()
         {
-            var created1 = _service.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
-            var created2 = _service.Create(new Event { Title = "Семинар", StartAt = DateTime.Now - TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(48), TotalSeats = 1 });
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var result = _service.GetAll(to: created1.EndAt);
+            var created1 = await eventService.Create(new Event { Title = "Конференция", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+            var created2 = await eventService.Create(new Event { Title = "Семинар", StartAt = DateTime.Now - TimeSpan.FromDays(1), EndAt = DateTime.Now.AddHours(48), TotalSeats = 1 });
+
+            var result = await eventService.GetAll(to: created1.EndAt);
 
             Assert.Single(result.Items);
             Assert.Equal(created1.EndAt, result.Items.First().EndAt);
         }
 
         [Fact]
-        public void Pagination_ReturnsCorrectPage()
+        public async Task Pagination_ReturnsCorrectPage()
         {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
             for (int i = 0; i < 25; i++)
             {
-                _service.Create(new Event { Title = $"Event {i}", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
+                await eventService.Create(new Event { Title = $"Event {i}", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
             }
 
-            var page1Result = _service.GetAll(page: 1, pageSize: 10);
-            var page2Result = _service.GetAll(page: 2, pageSize: 10);
+            var page1Result = await eventService.GetAll(page: 1, pageSize: 10);
+            var page2Result = await eventService.GetAll(page: 2, pageSize: 10);
 
             Assert.Equal(10, page1Result.Items.Count);
             Assert.Equal(10, page2Result.Items.Count);
@@ -149,9 +193,12 @@ namespace EventServices.Tests
         }
 
         [Fact]
-        public void CombinedFiltering_ReturnsOnlyMatchingEvent()
+        public async Task CombinedFiltering_ReturnsOnlyMatchingEvent()
         {
-            _service.Create(new Event
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
+            await eventService.Create(new Event
             {
                 Title = "Семинар по дизайну",
                 StartAt = DateTime.Now.AddDays(-2),
@@ -159,36 +206,36 @@ namespace EventServices.Tests
                 TotalSeats = 1
             });
 
-            _service.Create(new Event
+            await eventService.Create(new Event
             {
-                Title = "Конференция по .NET", 
-                StartAt = DateTime.Now.AddDays(-10), 
+                Title = "Конференция по .NET",
+                StartAt = DateTime.Now.AddDays(-10),
                 EndAt = DateTime.Now.AddDays(-5),
                 TotalSeats = 1
             });
 
-            _service.Create(new Event
+            await eventService.Create(new Event
             {
-                Title = "Конференция по .NET", 
+                Title = "Конференция по .NET",
                 StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now.AddDays(10),
                 TotalSeats = 1
             });
 
-            var expectedEvent = _service.Create(new Event
+            var expectedEvent = await eventService.Create(new Event
             {
                 Title = "Конференция по .NET",
-                StartAt = DateTime.Now.AddDays(-1), 
+                StartAt = DateTime.Now.AddDays(-1),
                 EndAt = DateTime.Now.AddDays(2),
                 TotalSeats = 1
             });
 
 
-            string searchTitle = "конф"; 
-            DateTime filterFrom = DateTime.Now.AddDays(-3); 
-            DateTime filterTo = DateTime.Now.AddDays(3);   
+            string searchTitle = "конф";
+            DateTime filterFrom = DateTime.Now.AddDays(-3);
+            DateTime filterTo = DateTime.Now.AddDays(3);
 
-            var result = _service.GetAll(
+            var result = await eventService.GetAll(
                 title: searchTitle,
                 from: filterFrom,
                 to: filterTo);
@@ -204,38 +251,40 @@ namespace EventServices.Tests
 
 
         [Fact]
-        public void GetById_NonExistentId_ReturnsExcept()
+        public async Task GetById_NonExistentId_ReturnsExcept()
         {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var exception = Assert.Throws<KeyNotFoundException>(() =>
-            {
-                _service.GetById(Guid.NewGuid());
-            });
+            var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => eventService.GetById(Guid.NewGuid()));
+           
+        }
+
+        [Fact]
+        public async Task Update_NonExistentId_ReturnsExcept()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
+            var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => eventService.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now, TotalSeats = 1 }));
 
         }
 
         [Fact]
-        public void Update_NonExistentId_ReturnsExcept()
+        public async Task Create_WithEndDateBeforeStartDate_ThrowsValidationException()
         {
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
-            var exception = Assert.Throws<KeyNotFoundException>(() =>
-            {
-                _service.Update(Guid.NewGuid(), new Event { Title = "Invalid", StartAt = DateTime.Now.AddDays(1), EndAt = DateTime.Now, TotalSeats = 1 });
-            });
-        }
 
-        [Fact]
-        public void Create_WithEndDateBeforeStartDate_ThrowsValidationException()
-        {
             var invalidEvent = new Event
             {
                 Title = "Некорректное событие",
-                StartAt = DateTime.Now.AddDays(1), 
+                StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now,
                 TotalSeats = 1
             };
-
-            var exception = Assert.Throws<ValidationException>(() => _service.Create(invalidEvent));
+            var exception = await Assert.ThrowsAsync<ValidationException>(() => eventService.Create(invalidEvent));
 
             _output.WriteLine(exception.Message);
             Assert.Contains("Дата окончания", exception.Message);
@@ -243,12 +292,15 @@ namespace EventServices.Tests
         }
 
         [Fact]
-        public void Update_WithEndDateBeforeStartDate_ThrowsValidationException()
+        public async Task Update_WithEndDateBeforeStartDate_ThrowsValidationException()
         {
-            var existingEvent = _service.Create(new Event
+            using var scope = _serviceProvider.CreateScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+
+            var existingEvent = await eventService.Create(new Event
             {
                 Title = "Событие для обновления",
-                StartAt = DateTime.Now.AddDays(1), 
+                StartAt = DateTime.Now.AddDays(1),
                 EndAt = DateTime.Now.AddDays(2),
                 TotalSeats = 1
             });
@@ -256,16 +308,12 @@ namespace EventServices.Tests
             var updatedData = new Event
             {
                 Title = "Новое название",
-                StartAt = DateTime.Now.AddDays(5), 
+                StartAt = DateTime.Now.AddDays(5),
                 EndAt = DateTime.Now.AddDays(3),
                 TotalSeats = 1
             };
 
-
-
-            var exception = Assert.Throws<ValidationException>(() =>
-                _service.Update(existingEvent.Id, updatedData)
-            );
+            var exception = await Assert.ThrowsAsync<ValidationException>(() => eventService.Update(existingEvent.Id, updatedData));
 
             Assert.Contains("Дата окончания", exception.Message);
             Assert.Contains("должна быть позже", exception.Message);

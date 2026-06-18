@@ -29,14 +29,14 @@ namespace AspNetCoreApi.Controllers
         }
 
         [HttpGet("{id:guid}")]
-        public IActionResult GetById(Guid id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var eventItem = _eventService.GetById(id); 
             return Ok(eventItem);
         }
 
         [HttpPost]
-        public IActionResult Create([FromBody] Event newEvent)
+        public async Task<IActionResult> Create([FromBody] Event newEvent)
         {
             if (!ModelState.IsValid)
             {
@@ -49,14 +49,14 @@ namespace AspNetCoreApi.Controllers
                 throw new ValidationException(errorMessage);
             }
 
-            var createdEvent = _eventService.Create(newEvent);
+            var createdEvent = await _eventService.Create(newEvent);
             return CreatedAtAction(nameof(GetById), new { id = createdEvent.Id }, createdEvent);
         }
             
      
 
         [HttpPut("{id:guid}")]
-        public IActionResult Update(Guid id, [FromBody] Event updatedEvent)
+        public async Task <IActionResult> Update(Guid id, [FromBody] Event updatedEvent)
         {
             if (!ModelState.IsValid)
             {
@@ -77,7 +77,7 @@ namespace AspNetCoreApi.Controllers
         
 
         [HttpDelete("{id:guid}")]
-        public IActionResult Delete(Guid id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = _eventService.Delete(id);
 

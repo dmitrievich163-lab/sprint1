@@ -1,20 +1,27 @@
-﻿using AspNetCoreApi.Models;
+﻿using AspNetCoreApi.DataAccess;
+using AspNetCoreApi.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace AspNetCoreApi.Services
 {
     public class EventService: IEventService
     {
-        private readonly List<Event> _events = new();
 
-        public IEnumerable<Event> GetAll()
+        private readonly AppDbContext _context;
+
+        // AppDbContext внедряется через конструктор
+        public EventService(AppDbContext context)
         {
-            return _events;
+            _context = context;
+        }
+        public async Task<IEnumerable<Event>> GetAll()
+        {
+            return _context.Events;
         }
 
-        public PaginatedResult<Event> GetAll(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
+        public async Task<PaginatedResult<Event>> GetAll(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
         {
-            var query = _events.AsQueryable();
+            var query = _context.Events.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(title))
             {
@@ -48,9 +55,9 @@ namespace AspNetCoreApi.Services
             };
         }
 
-        public Event GetById(Guid id)
+        public async Task <Event> GetById(Guid id)
         {
-            var eventItem = _events.FirstOrDefault(e => e.Id == id);
+            var eventItem = _context.Events.FirstOrDefault(e => e.Id == id);
             if (eventItem == null)
             {
                 throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
@@ -59,7 +66,7 @@ namespace AspNetCoreApi.Services
             return eventItem;
         }
 
-        public Event Create(Event newEvent)
+        public async Task <Event> Create(Event newEvent)
         {
             if (newEvent.TotalSeats <=0)
                 throw new ValidationException("TotalSeats is required.");
@@ -68,26 +75,18 @@ namespace AspNetCoreApi.Services
             {
                 throw new ValidationException("Дата окончания (EndAt) должна быть позже даты начала (StartAt).");
             }
+            newEvent.AvailableSeats = newEvent.TotalSeats;
+            await _context.Events.AddAsync(newEvent);
 
-            var eventToAdd = new Event
-            {
-                Id = Guid.NewGuid(),
-                Title = newEvent.Title,
-                Description = newEvent.Description,
-                StartAt = newEvent.StartAt,
-                EndAt = newEvent.EndAt,
-                TotalSeats = newEvent.TotalSeats,
-                AvailableSeats = newEvent.TotalSeats
+            // Сохраняем изменения в базе данных.
+            await _context.SaveChangesAsync();
 
-            };
-
-            _events.Add(eventToAdd);
-            return eventToAdd;
+            return newEvent;
         }
 
-        public Event Update(Guid id, Event updatedEvent)
+        public async Task <Event> Update(Guid id, Event updatedEvent)
         {
-            var existing = _events.FirstOrDefault(e => e.Id == id);
+            var existing = _context.Events.FirstOrDefault(e => e.Id == id);
             if (existing == null)
             {
                 throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
@@ -103,19 +102,25 @@ namespace AspNetCoreApi.Services
             existing.EndAt = updatedEvent.EndAt;
             existing.AvailableSeats = updatedEvent.AvailableSeats;
 
+            await _context.SaveChangesAsync();
+
             return existing;
         }
 
-        public bool Delete(Guid id)
+        public async Task <bool> Delete(Guid id)
         {
 
-            var existing = _events.FirstOrDefault(e => e.Id == id);
+            var existing = _context.Events.FirstOrDefault(e => e.Id == id);
             if (existing == null)
             {
                 throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
             }
+            _context.Events.Remove(existing);
 
-            return _events.Remove(existing);
+            int rowsAffected = await _context.SaveChangesAsync();
+
+            // Возвращаем true, если хотя бы одна строка была удалена.
+            return rowsAffected > 0;
         }
     }
 }

@@ -1,5 +1,7 @@
 using AspNetCoreApi;
+using AspNetCoreApi.DataAccess;
 using AspNetCoreApi.Services;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,9 +10,12 @@ builder.Services.AddControllers()
     {
         options.SuppressModelStateInvalidFilter = true;
     });
-builder.Services.AddSingleton<IEventService, EventService>();
-builder.Services.AddSingleton<IBookingService, BookingService>();
-builder.Services.AddSingleton<InMemoryBookingRepository>();
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<IBookingService, BookingService>();
 
 builder.Services.AddHostedService<BookingProcessingHostedService>();
 
@@ -18,6 +23,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated(); // Создает БД и таблицы, если их нет
+}
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
