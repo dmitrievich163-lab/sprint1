@@ -1,5 +1,6 @@
 ﻿using AspNetCoreApi.DataAccess;
 using AspNetCoreApi.Models;
+using AspNetCoreApi.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace AspNetCoreApi.Services
@@ -29,7 +30,7 @@ namespace AspNetCoreApi.Services
                     // Создаем scope для получения доступа к scoped-сервисам (DbContext, BookingService)
                     using var scope = _scopeFactory.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var bookingService = scope.ServiceProvider.GetRequiredService<IBookingService>();
+                    var bookingService = scope.ServiceProvider.GetRequiredService<IBookingRepository>();
 
                     // 1. Находим ID всех бронирований со статусом Pending
                     // Используем Select для оптимизации - загружаем только ID, а не все объекты целиком.
