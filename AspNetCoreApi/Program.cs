@@ -1,5 +1,6 @@
 using AspNetCoreApi;
 using AspNetCoreApi.DataAccess;
+using AspNetCoreApi.Repositories;
 using AspNetCoreApi.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 
 builder.Services.AddHostedService<BookingProcessingHostedService>();
 
@@ -27,7 +30,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.EnsureCreated(); // Создает БД и таблицы, если их нет
+    db.Database.Migrate();
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
