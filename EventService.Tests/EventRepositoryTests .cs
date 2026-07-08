@@ -244,6 +244,25 @@ namespace EventServices.Tests
         }
 
         [Fact]
+        public async Task CreateAsync()
+        {
+            await ResetDatabaseAsync();
+
+            await using var contextForAdding = CreateContext();
+            var nowUtc = DateTime.UtcNow;
+            var event1 = new Event { Id = Guid.NewGuid(), Title = "Концерт", StartAt = nowUtc, EndAt = nowUtc.AddHours(2), TotalSeats = 10 };
+
+            
+            var repository = new EventRepository(contextForAdding);
+            var created = await repository.CreateAsync(event1);
+
+            Assert.Equal(created.Id, event1.Id);
+            Assert.Equal(created.Title, event1.Title);
+            Assert.Equal(created.Description, event1.Description);
+            Assert.Equal(created.TotalSeats, event1.TotalSeats);
+        }
+
+        [Fact]
         public async Task UpdateAsync_UpdatesEventSuccessfully()
         {
             await ResetDatabaseAsync();

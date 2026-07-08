@@ -154,6 +154,45 @@ namespace EventService.Tests
         }
 
         [Fact]
+        public async Task GetByIdAsync_ExistingBooking_ReturnsEntityWithCorrectData()
+        {
+            // Arrange: Подготавливаем данные напрямую в БД
+            await ResetDatabaseAsync();
+            await using var context = CreateContext();
+
+            var @event = new Event {
+                Id = Guid.NewGuid(),
+                Title = "Оригинальный Концерт",
+                Description = "Описание",
+                StartAt = DateTime.UtcNow,
+                EndAt = DateTime.UtcNow.AddHours(3),
+                AvailableSeats = 100,
+            };
+            await context.Events.AddAsync(@event);
+            await context.SaveChangesAsync();
+
+            var repository = new BookingRepository(context);
+
+            // Act: Вызываем метод из-под другого контекста (как это было бы в рантайме приложения)
+            await using var newContext = CreateContext();
+            var repoForAct = new BookingRepository(newContext);
+
+            var booking = await repoForAct.CreateBookingAsync(@event.Id);
+
+            await using var newContext2 = CreateContext();
+            var repoForAct2 = new BookingRepository(newContext2);
+
+            var result = await repoForAct.GetByIdAsync(booking);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(booking, result!.Id);
+            Assert.Equal(result.Status, BookingStatus.Pending);
+            Assert.Equal(result.EventId, @event.Id);
+        }
+
+
+        [Fact]
         public async Task RejectBookingAsync_RejectsPendingBooking()
         {
             // Arrange
