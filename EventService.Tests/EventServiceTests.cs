@@ -26,7 +26,9 @@ namespace EventServices.Tests
             var services = new ServiceCollection();
             services.AddDbContext<AspNetCoreApi.DataAccess.AppDbContext>(options =>
                 options.UseInMemoryDatabase(dbName)); // Используем InMemory-провайдер
-            services.AddScoped<IEventService, EventService>(); // Регистрируем сервис
+            services.AddScoped<AspNetCoreApi.Repositories.IEventRepository, AspNetCoreApi.Repositories.EventRepository>();
+            services.AddScoped<AspNetCoreApi.Repositories.IBookingRepository, AspNetCoreApi.Repositories.BookingRepository>();
+            services.AddScoped<IEventService, AspNetCoreApi.Services.EventService>(); // Регистрируем сервис
 
             _serviceProvider = services.BuildServiceProvider();
         }
@@ -50,22 +52,22 @@ namespace EventServices.Tests
             Assert.NotNull(eventInDb);
             Assert.Equal("Test Event", eventInDb.Title);
         }
-    
 
 
-[Fact]
-public async Task GetAll_ReturnsAllEvents()
-{
+
+        [Fact]
+        public async Task GetAll_ReturnsAllEvents()
+        {
             using var scope = _serviceProvider.CreateScope();
             var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
             await eventService.Create(new Event { Title = "Event 1", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
             await eventService.Create(new Event { Title = "Event 2", StartAt = DateTime.Now, EndAt = DateTime.Now.AddHours(1), TotalSeats = 1 });
 
-    var events = await eventService.GetAll();
+            var events = await eventService.GetAll();
 
-    Assert.Equal(2, events.Count());
-}
+            Assert.Equal(2, events.Count());
+        }
 
         [Fact]
         public async Task GetById_ReturnsCorrectEvent()
@@ -257,7 +259,7 @@ public async Task GetAll_ReturnsAllEvents()
             var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
 
             var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() => eventService.GetById(Guid.NewGuid()));
-           
+
         }
 
         [Fact]
