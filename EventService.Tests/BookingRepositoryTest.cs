@@ -1,14 +1,7 @@
-﻿using AspNetCoreApi.DataAccess;
-using AspNetCoreApi.Exceptions;
-using AspNetCoreApi.Models;
-using AspNetCoreApi.Repositories;
-using AspNetCoreApi.Services;
+﻿using Application.Repositories;
+using Domain;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Text;
 using Testcontainers.PostgreSql;
 
 namespace EventService.Tests

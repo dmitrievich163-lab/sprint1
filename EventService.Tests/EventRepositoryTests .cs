@@ -1,14 +1,9 @@
-﻿using AspNetCoreApi.DataAccess;
-using AspNetCoreApi.Models;
-using AspNetCoreApi.Repositories;
-using k8s.KubeConfigModels;
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Application.Repositories;
+using Domain;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using Testcontainers.PostgreSql;
-using Xunit;
 
 namespace EventServices.Tests
 {

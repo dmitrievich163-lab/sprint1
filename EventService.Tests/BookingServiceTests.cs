@@ -1,11 +1,7 @@
-﻿using AspNetCoreApi.DataAccess;
-using AspNetCoreApi.Exceptions;
-using AspNetCoreApi.Models;
-using AspNetCoreApi.Repositories;
-using AspNetCoreApi.Services;
-using k8s.Models;
+﻿using Application.Services;
+using Domain;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualStudio.TestPlatform.Utilities;
 using System.Collections.Concurrent;
 using Xunit.Abstractions;
 
@@ -24,9 +20,9 @@ namespace EventServices.Tests
             var services = new ServiceCollection();
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
-            services.AddScoped<AspNetCoreApi.Repositories.IEventRepository, AspNetCoreApi.Repositories.EventRepository>();
-            services.AddScoped<AspNetCoreApi.Repositories.IBookingRepository, AspNetCoreApi.Repositories.BookingRepository>();
-            services.AddScoped<IEventService, AspNetCoreApi.Services.EventService>();
+            services.AddScoped<Application.Repositories.IEventRepository, Application.Repositories.EventRepository>();
+            services.AddScoped<Application.Repositories.IBookingRepository, Application.Repositories.BookingRepository>();
+            services.AddScoped<IEventService, Application.Services.EventService>();
             services.AddScoped<IBookingService, BookingService>();
             _serviceProvider = services.BuildServiceProvider();
         }

@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Ссылки на слои -->
+		<ProjectReference Include="..\Application\Application.csproj" />
+		<ProjectReference Include="..\Domain\Domain.csproj" />
+	</ItemGroup>
+
+	<!-- Инфраструктурные пакеты EF Core -->
+	<ItemGroup>
+		<!-- Инструменты для дизайнтима (миграций). PrivateAssets скрывает их от транзитивных зависимостей. -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+
+		<!-- Провайдер базы данных (выбран PostgreSQL) -->
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+
+		<!-- ПАКЕТЫ ДЛЯ MS SQL УДАЛЕНЫ, чтобы избежать конфликтов провайдеров внутри одного DbContext -->
+		<!--
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.10">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    -->
+
+		<!-- Пакеты конфигурации для работы AppDbContextFactory без appsettings.json -->
+		<PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.10" />
+	</ItemGroup>
+
+</Project>

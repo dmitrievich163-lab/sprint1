@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+		<EnvironmentName>Development</EnvironmentName>
+		<!-- DesignTimeWorkingDirectory лучше задавать глобально в файле решения (.sln), но можно оставить здесь -->
+		<DesignTimeWorkingDirectory>$(SolutionDir)</DesignTimeWorkingDirectory>
+		<UserSecretsId>1f65f1f9-ec86-46ea-9d6b-f192fbd2ee49</UserSecretsId>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- OpenAPI / Swagger (версии приведены к мажорной ветке 10) -->
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.5" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.7" />
+
+		<!-- Microsoft.AspNetCore.Mvc.Core v2.3.11 УДАЛЕН. 
+         Он относится к .NET Core 2.1 и несовместим с net10.0. 
+         Функциональность подтягивается через Sdk="Microsoft.NET.Sdk.Web". -->
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Инструменты дизайна нужны в стартовом проекте для выполнения команд CLI -->
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
+
+		<!-- Провайдер БД нужен здесь для регистрации в Program.cs (builder.Services.AddDbContext...UseNpgsql) -->
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Ссылки на нижележащие слои -->
+		<ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
+		<ProjectReference Include="..\Application\Application.csproj" />
+		<ProjectReference Include="..\Domain\Domain.csproj" />
+	</ItemGroup>
+
+</Project>

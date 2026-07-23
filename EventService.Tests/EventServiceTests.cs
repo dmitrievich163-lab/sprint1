@@ -1,14 +1,8 @@
-﻿using AspNetCoreApi.DataAccess;
-using AspNetCoreApi.Models;
-using AspNetCoreApi.Services;
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Application.Services;
+using Domain;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace EventServices.Tests
@@ -24,11 +18,11 @@ namespace EventServices.Tests
             var dbName = Guid.NewGuid().ToString(); // Уникальное имя для каждой сессии тестов
 
             var services = new ServiceCollection();
-            services.AddDbContext<AspNetCoreApi.DataAccess.AppDbContext>(options =>
+            services.AddDbContext<Infrastructure.DataAccess.AppDbContext>(options =>
                 options.UseInMemoryDatabase(dbName)); // Используем InMemory-провайдер
-            services.AddScoped<AspNetCoreApi.Repositories.IEventRepository, AspNetCoreApi.Repositories.EventRepository>();
-            services.AddScoped<AspNetCoreApi.Repositories.IBookingRepository, AspNetCoreApi.Repositories.BookingRepository>();
-            services.AddScoped<IEventService, AspNetCoreApi.Services.EventService>(); // Регистрируем сервис
+            services.AddScoped<Application.Repositories.IEventRepository, Application.Repositories.EventRepository>();
+            services.AddScoped<Application.Repositories.IBookingRepository, Application.Repositories.BookingRepository>();
+            services.AddScoped<IEventService, Application.Services.EventService>(); // Регистрируем сервис
 
             _serviceProvider = services.BuildServiceProvider();
         }
