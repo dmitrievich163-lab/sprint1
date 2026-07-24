@@ -6,9 +6,9 @@ namespace Application.Repositories
     {
         Task<Guid> CreateBookingAsync(Guid eventId);
         Task<Booking?> GetByIdAsync(Guid bookingId);
-
+        Task<Booking?> GetByIdWithEventAsync(Guid bookingId);
         // Метод для фоновой обработки. Он инкапсулирует всю сложную логику транзакции.
-        Task ProcessPendingBookingAsync(Guid bookingId);
+        Task ProcessPendingBookingAsync();
 
         // Методы для явного управления статусом брони.
         Task RejectBookingAsync(Guid bookingId);

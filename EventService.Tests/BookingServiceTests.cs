@@ -1,5 +1,6 @@
 ﻿using Application.Services;
 using Domain;
+using Infrastructure;
 using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
@@ -21,7 +22,7 @@ namespace EventServices.Tests
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
             services.AddScoped<Application.Repositories.IEventRepository, Application.Repositories.EventRepository>();
-            services.AddScoped<Application.Repositories.IBookingRepository, Application.Repositories.BookingRepository>();
+            services.AddScoped<Application.Repositories.IBookingRepository, BookingRepository>();
             services.AddScoped<IEventService, Application.Services.EventService>();
             services.AddScoped<IBookingService, BookingService>();
             _serviceProvider = services.BuildServiceProvider();

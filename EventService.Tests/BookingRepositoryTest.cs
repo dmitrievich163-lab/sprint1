@@ -1,10 +1,12 @@
 ﻿using Application.Repositories;
+using Application.Services;
 using Domain;
+using Infrastructure;
 using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
-namespace EventService.Tests
+namespace EventServices.Tests
 {
     public class BookingRepositoryTest : IAsyncLifetime
     {
@@ -68,10 +70,13 @@ namespace EventService.Tests
             await context.Events.AddAsync(@event);
             await context.SaveChangesAsync();
 
-            var bookingRepository = new BookingRepository(context); // Предполагаемое имя сервиса
+            var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository); // Предполагаемое имя сервиса
 
             // Act
-            var newBookingId = await bookingRepository.CreateBookingAsync(@event.Id);
+            var newBookingId = await bookingServise.CreateBookingAsync(@event.Id);
 
             // Assert: Проверяем, что ID сгенерирован
             Assert.NotEqual(Guid.Empty, newBookingId);
@@ -106,9 +111,11 @@ namespace EventService.Tests
             await context.SaveChangesAsync();
 
             var bookingRepository = new BookingRepository(context);
-
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository,eventRepository);
+            var eventService = new EventService(eventRepository);
             // Act
-            await bookingRepository.ProcessPendingBookingAsync(pendingBooking.Id);
+            await bookingServise.ProcessPendingBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();
@@ -135,9 +142,12 @@ namespace EventService.Tests
             await context.SaveChangesAsync();
 
             var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             // Act
-            await bookingRepository.ProcessPendingBookingAsync(pendingBooking.Id);
+            await bookingServise.ProcessPendingBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();
@@ -201,9 +211,12 @@ namespace EventService.Tests
             await context.SaveChangesAsync();
 
             var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             // Act
-            await bookingRepository.RejectBookingAsync(pendingBooking.Id);
+            await bookingServise.RejectBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();
@@ -228,9 +241,12 @@ namespace EventService.Tests
             await context.SaveChangesAsync();
 
             var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             // Act
-            await bookingRepository.ConfirmBookingAsync(pendingBooking.Id);
+            await bookingServise.ConfirmBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();

@@ -59,14 +59,6 @@ namespace Application.Repositories
 
         public async Task<Event> CreateAsync(Event newEvent)
         {
-            if (newEvent.TotalSeats <= 0)
-                throw new ValidationException("TotalSeats is required.");
-
-            if (newEvent.EndAt <= newEvent.StartAt)
-            {
-                throw new ValidationException("Дата окончания (EndAt) должна быть позже даты начала (StartAt).");
-            }
-            newEvent.AvailableSeats = newEvent.TotalSeats;
             await _context.Events.AddAsync(newEvent);
             await _context.SaveChangesAsync();
 
@@ -75,30 +67,15 @@ namespace Application.Repositories
 
         public async Task<Event> UpdateAsync(Guid id, Event updatedEvent)
         {
-            var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id) ??
-                           throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
-
-            if (updatedEvent.EndAt <= updatedEvent.StartAt)
-            {
-                throw new ValidationException("Дата окончания (EndAt) должна быть позже даты начала (StartAt).");
-            }
-
-            // Обновляем свойства сущности. EF Core отследит изменения.
-            existing.Title = updatedEvent.Title;
-            existing.Description = updatedEvent.Description;
-            existing.StartAt = updatedEvent.StartAt;
-            existing.EndAt = updatedEvent.EndAt;
-            existing.AvailableSeats = updatedEvent.AvailableSeats;
-
             await _context.SaveChangesAsync();
 
+            var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
             return existing;
         }
 
         public async Task<bool> DeleteAsync(Guid id)
         {
-            var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id) ??
-                           throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
+            var existing = await _context.Events.FirstOrDefaultAsync(e => e.Id == id);
 
             _context.Events.Remove(existing);
             int rowsAffected = await _context.SaveChangesAsync();
