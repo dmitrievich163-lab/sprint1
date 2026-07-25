@@ -31,7 +31,7 @@ namespace AspNetCoreApi.Controllers
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
-            var eventItem = _eventService.GetById(id); 
+            var eventItem = await _eventService.GetById(id); 
             return Ok(eventItem);
         }
 
@@ -70,7 +70,7 @@ namespace AspNetCoreApi.Controllers
             }
 
           
-                var result = _eventService.Update(id, updatedEvent);
+                var result = await _eventService.Update(id, updatedEvent);
 
                 return Ok(result);
             }
@@ -79,7 +79,7 @@ namespace AspNetCoreApi.Controllers
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            var deleted = _eventService.Delete(id);
+            var deleted = await _eventService.Delete(id);
 
             return NoContent();
         }
