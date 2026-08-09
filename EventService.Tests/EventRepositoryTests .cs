@@ -1,14 +1,11 @@
-﻿using AspNetCoreApi.DataAccess;
-using AspNetCoreApi.Models;
-using AspNetCoreApi.Repositories;
-using k8s.KubeConfigModels;
-using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Application.Repositories;
+using Application.Services;
+using Domain;
+using Infrastructure;
+using Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Npgsql;
 using System.ComponentModel.DataAnnotations;
 using Testcontainers.PostgreSql;
-using Xunit;
 
 namespace EventServices.Tests
 {
@@ -267,7 +264,10 @@ namespace EventServices.Tests
         {
             await ResetDatabaseAsync();
             await using var context = CreateContext();
-            var repository = new EventRepository(context);
+            var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             var originalEvent = new Event
             {
@@ -292,7 +292,7 @@ namespace EventServices.Tests
                 AvailableSeats = 50, 
             };
 
-            var updatedEventFromRepo = await repository.UpdateAsync(originalEvent.Id, updatedData);
+            var updatedEventFromRepo = await eventService.Update(originalEvent.Id, updatedData);
 
             Assert.NotNull(updatedEventFromRepo);
             Assert.Equal(updatedData.Title, updatedEventFromRepo.Title);
@@ -318,14 +318,17 @@ namespace EventServices.Tests
             // Arrange
             await ResetDatabaseAsync();
             await using var context = CreateContext();
-            var repository = new EventRepository(context);
+            var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             var nonExistentId = Guid.NewGuid();
             var someEventData = new Event { Id = nonExistentId }; // Данные не важны, т.к. сущность не будет найдена
 
             // Act & Assert: Проверяем, что выбрасывается ожидаемое исключение
             var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-                repository.UpdateAsync(nonExistentId, someEventData)
+                eventService.Update(nonExistentId, someEventData)
             );
 
             // Можно также проверить текст сообщения, если это важно
@@ -339,7 +342,10 @@ namespace EventServices.Tests
             // Arrange: Создаем и сохраняем исходное событие
             await ResetDatabaseAsync();
             await using var context = CreateContext();
-            var repository = new EventRepository(context);
+            var bookingRepository = new BookingRepository(context);
+            var eventRepository = new EventRepository(context);
+            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var eventService = new EventService(eventRepository);
 
             var originalEvent = new Event {
                 Id = Guid.NewGuid(),
@@ -362,7 +368,7 @@ namespace EventServices.Tests
             };
 
             var exception = await Assert.ThrowsAsync<ValidationException>(() =>
-                repository.UpdateAsync(originalEvent.Id, invalidData)
+                eventService.Update(originalEvent.Id, invalidData)
             );
 
             Assert.Equal("Дата окончания (EndAt) должна быть позже даты начала (StartAt).", exception.Message);

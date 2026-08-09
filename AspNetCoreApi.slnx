@@ -1,4 +1,7 @@
 <Solution>
-  <Project Path="AspNetCoreApi/AspNetCoreApi.csproj" />
+  <Project Path="Application/Application.csproj" />
+  <Project Path="Domain/Domain.csproj" />
   <Project Path="EventService.Tests/EventService.Tests.csproj" />
+  <Project Path="Infrastructure/Infrastructure.csproj" />
+  <Project Path="Presentation/Presentation.csproj" />
 </Solution>
