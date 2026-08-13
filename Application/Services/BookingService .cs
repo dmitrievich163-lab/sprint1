@@ -8,27 +8,38 @@ namespace Application.Services
     {
         private readonly IBookingRepository _bookingRepository;
         private readonly IEventRepository _eventRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly IBookingPolicy _policy;
 
         // Конструктор принимает интерфейс репозитория, а не DbContext
-        public BookingService(IBookingRepository bookingRepository, IEventRepository eventRepository)
+        public BookingService(IBookingRepository bookingRepository,
+            IEventRepository eventRepository,
+            IUserRepository userRepository,
+            IBookingPolicy policy)
         {
             _bookingRepository = bookingRepository;
             _eventRepository = eventRepository;
+            _userRepository = userRepository;
+            _policy = policy;
         }
 
         // Все методы просто перенаправляют вызов в репозиторий
-        public async Task<Guid> CreateBookingAsync(Guid eventId)
+        public async Task<Guid> CreateBookingAsync(Guid eventId, Guid userId)
         {
-
             var @event = await _eventRepository.GetByIdAsync(eventId);
 
             if (@event == null)
                 throw new KeyNotFoundException($"Событие с ID {eventId} не найдено.");
-
             if (!@event.TryReserveSeats(1))
                 throw new NoAvailableSeatsException("No available seats for this event.");
+            _policy.CheckEventAvailability(@event.EndAt);
 
-            return await _bookingRepository.CreateBookingAsync(eventId);
+            // Проверка: лимит активных броней у пользователя
+            var activeBookings = await _userRepository.GetActiveBookingsByUserIdAsync(userId);
+            _policy.CheckActiveBookingLimit(activeBookings, 10); // Лимит строго 10
+
+            // Если все ок — создаем бронь с привязкой к пользователю
+            return await _bookingRepository.CreateBookingAsync(eventId, userId);
         }
 
         public async Task<Booking?> GetBookingByIdAsync(Guid bookingId)

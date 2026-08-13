@@ -266,7 +266,14 @@ namespace EventServices.Tests
             await using var context = CreateContext();
             var bookingRepository = new BookingRepository(context);
             var eventRepository = new EventRepository(context);
-            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var userRepository = new UserRepository(context);
+            var bookingPolicy = new BookingPolicy();
+            var bookingService = new BookingService(
+        bookingRepository,
+        eventRepository,
+        userRepository,
+        bookingPolicy
+    );
             var eventService = new EventService(eventRepository);
 
             var originalEvent = new Event
@@ -282,14 +289,14 @@ namespace EventServices.Tests
             await context.Events.AddAsync(originalEvent);
             await context.SaveChangesAsync();
 
-            var updatedData = new Event 
+            var updatedData = new Event
             {
                 Id = originalEvent.Id,
                 Title = "Обновленный Концерт",
                 Description = "Новое описание",
                 StartAt = DateTime.UtcNow.AddDays(1),
                 EndAt = DateTime.UtcNow.AddDays(1).AddHours(4),
-                AvailableSeats = 50, 
+                AvailableSeats = 50,
             };
 
             var updatedEventFromRepo = await eventService.Update(originalEvent.Id, updatedData);
@@ -320,7 +327,14 @@ namespace EventServices.Tests
             await using var context = CreateContext();
             var bookingRepository = new BookingRepository(context);
             var eventRepository = new EventRepository(context);
-            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var userRepository = new UserRepository(context);
+            var bookingPolicy = new BookingPolicy();
+            var bookingService = new BookingService(
+        bookingRepository,
+        eventRepository,
+        userRepository,
+        bookingPolicy
+    );
             var eventService = new EventService(eventRepository);
 
             var nonExistentId = Guid.NewGuid();
@@ -344,10 +358,18 @@ namespace EventServices.Tests
             await using var context = CreateContext();
             var bookingRepository = new BookingRepository(context);
             var eventRepository = new EventRepository(context);
-            var bookingServise = new BookingService(bookingRepository, eventRepository);
+            var userRepository = new UserRepository(context);
+            var bookingPolicy = new BookingPolicy();
+            var bookingService = new BookingService(
+        bookingRepository,
+        eventRepository,
+        userRepository,
+        bookingPolicy
+    );
             var eventService = new EventService(eventRepository);
 
-            var originalEvent = new Event {
+            var originalEvent = new Event
+            {
                 Id = Guid.NewGuid(),
                 Title = "Оригинальный Концерт",
                 Description = "Описание до обновления",
@@ -358,7 +380,8 @@ namespace EventServices.Tests
             await context.Events.AddAsync(originalEvent);
             await context.SaveChangesAsync();
 
-            var invalidData = new Event {
+            var invalidData = new Event
+            {
                 Id = Guid.NewGuid(),
                 Title = "Оригинальный Концерт",
                 Description = "Описание до обновления",

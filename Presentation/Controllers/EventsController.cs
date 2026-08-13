@@ -1,5 +1,6 @@
-﻿using Domain;
-using Application.Services;
+﻿using Application.Services;
+using Domain;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
@@ -36,6 +37,9 @@ namespace AspNetCoreApi.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Create([FromBody] Event newEvent)
         {
             if (!ModelState.IsValid)
@@ -56,6 +60,10 @@ namespace AspNetCoreApi.Controllers
      
 
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task <IActionResult> Update(Guid id, [FromBody] Event updatedEvent)
         {
             if (!ModelState.IsValid)
