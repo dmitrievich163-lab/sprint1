@@ -85,6 +85,9 @@ namespace AspNetCoreApi.Controllers
         
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> Delete(Guid id)
         {
             var deleted = await _eventService.Delete(id);

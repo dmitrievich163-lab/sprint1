@@ -1,4 +1,5 @@
 ﻿using Application.Services;
+using Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -57,6 +58,20 @@ namespace AspNetCoreApi.Controllers
             }
 
             return Ok(booking);
+        }
+
+        [HttpDelete("{id:guid}")]
+        [Authorize] // Требуется авторизация
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CancelBooking(Guid id)
+        {
+            // Просто вызываем сервис. Вся логика проверок уже внутри него.
+            await _bookingService.CancelBookingAsync(id);
+
+            // Возвращаем 204 No Content согласно REST API best practices
+            return NoContent();
         }
     }
 }

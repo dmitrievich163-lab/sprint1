@@ -4,9 +4,11 @@ using Domain;
 using Infrastructure;
 using Infrastructure.DataAccess;
 using k8s.KubeConfigModels;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using Xunit.Abstractions;
 
 namespace EventServices.Tests
@@ -22,6 +24,7 @@ namespace EventServices.Tests
             var dbName = Guid.NewGuid().ToString(); // Уникальная БД для каждого запуска тестов
 
             var services = new ServiceCollection();
+            services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor());
             services.AddDbContext<AppDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
             services.AddScoped<Application.Repositories.IEventRepository, Application.Repositories.EventRepository>();
@@ -46,14 +49,14 @@ namespace EventServices.Tests
         passwordHash: PasswordHash.CreateFromPlainText("qwerty"),
         role: UserRole.User);
             var userId = user.Id;
-            var newEvent = new Event { Title = "Test Event", StartAt = DateTime.UtcNow, EndAt = DateTime.UtcNow.AddHours(1), TotalSeats = 5 };
+            var newEvent = new Event { Title = "Test Event", StartAt = DateTime.UtcNow.AddHours(1), EndAt = DateTime.UtcNow.AddHours(5), TotalSeats = 5 };
             var createdEvent = await eventService.Create(newEvent);
             var eventId = createdEvent.Id;
 
             using var bookingScope = _serviceProvider.CreateScope();
             var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var bookingId = await bookingService.CreateBookingAsync(eventId,userId);
+            var bookingId = await bookingService.CreateBookingAsync(eventId, userId);
             var booking = await bookingService.GetBookingByIdAsync(bookingId);
 
             Assert.NotNull(booking);
@@ -81,8 +84,8 @@ namespace EventServices.Tests
             using var bookingScope = _serviceProvider.CreateScope();
             var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var id1 = await bookingService.CreateBookingAsync(eventId,userId);
-            var id2 = await bookingService.CreateBookingAsync(eventId,userId);
+            var id1 = await bookingService.CreateBookingAsync(eventId, userId);
+            var id2 = await bookingService.CreateBookingAsync(eventId, userId);
 
             Assert.NotEqual(id1, id2);
         }
@@ -105,7 +108,7 @@ namespace EventServices.Tests
             using var bookingScope = _serviceProvider.CreateScope();
             var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var bookingId = await bookingService.CreateBookingAsync(eventId,userId);
+            var bookingId = await bookingService.CreateBookingAsync(eventId, userId);
 
             var result = await bookingService.GetBookingByIdAsync(bookingId);
 
@@ -139,7 +142,7 @@ namespace EventServices.Tests
             });
 
             // Создаем новую бронь со статусом Pending
-            var bookingId = await bookingService.CreateBookingAsync(createdEvent.Id,userId);
+            var bookingId = await bookingService.CreateBookingAsync(createdEvent.Id, userId);
 
             var booking = await bookingService.GetBookingByIdAsync(bookingId);
             await bookingService.ConfirmBookingAsync(bookingId);
@@ -209,9 +212,9 @@ namespace EventServices.Tests
             using var bookingScope = _serviceProvider.CreateScope();
             var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var bookingId1 = await bookingService.CreateBookingAsync(eventId,userId);
-            var bookingId2 = await bookingService.CreateBookingAsync(eventId,userId);
-            var bookingId3 = await bookingService.CreateBookingAsync(eventId,userId);
+            var bookingId1 = await bookingService.CreateBookingAsync(eventId, userId);
+            var bookingId2 = await bookingService.CreateBookingAsync(eventId, userId);
+            var bookingId3 = await bookingService.CreateBookingAsync(eventId, userId);
 
             using var eventScope2 = _serviceProvider.CreateScope();
             var eventService2 = eventScope2.ServiceProvider.GetRequiredService<IEventService>();
@@ -380,7 +383,7 @@ namespace EventServices.Tests
             using var bookingScope = _serviceProvider.CreateScope();
             var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var bookingId = await bookingService.CreateBookingAsync(eventId,userId);
+            var bookingId = await bookingService.CreateBookingAsync(eventId, userId);
             var @booking = await bookingService.GetBookingByIdAsync(bookingId);
 
             using var eventScope2 = _serviceProvider.CreateScope();
@@ -413,7 +416,7 @@ namespace EventServices.Tests
             using var bookingScope3 = _serviceProvider.CreateScope();
             var bookingService3 = bookingScope3.ServiceProvider.GetRequiredService<IBookingService>();
 
-            var bookingId2 = await bookingService3.CreateBookingAsync(eventId,userId);
+            var bookingId2 = await bookingService3.CreateBookingAsync(eventId, userId);
 
             using var eventScope4 = _serviceProvider.CreateScope();
             var eventService4 = eventScope4.ServiceProvider.GetRequiredService<IEventService>();
@@ -521,7 +524,7 @@ namespace EventServices.Tests
                     try
                     {
                         // Каждый запрос использует свой DbContext
-                        var bookingId = await bookingService.CreateBookingAsync(eventId,userId);
+                        var bookingId = await bookingService.CreateBookingAsync(eventId, userId);
                         createdBookingIds.Add(bookingId);
                     }
                     catch (Exception ex)
@@ -562,7 +565,7 @@ namespace EventServices.Tests
 
 
             var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-             bookingService.CreateBookingAsync(eventId,userId)
+             bookingService.CreateBookingAsync(eventId, userId)
         );
 
             Assert.Equal("Событие с ID " + eventId + " не найдено.", exception.Message);
@@ -602,7 +605,7 @@ namespace EventServices.Tests
             await eventService.Delete(eventId);
 
             var exception = await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-            bookingService.CreateBookingAsync(eventId,userId)
+            bookingService.CreateBookingAsync(eventId, userId)
         );
 
             Assert.Equal("Событие с ID " + eventId + " не найдено.", exception.Message);
@@ -625,14 +628,124 @@ namespace EventServices.Tests
             var eventId = createdEvent.Id;
             var AvailableSeats = createdEvent.AvailableSeats;
 
-            await bookingService.CreateBookingAsync(eventId,userId);
+            await bookingService.CreateBookingAsync(eventId, userId);
 
             var exception = await Assert.ThrowsAsync<NoAvailableSeatsException>(async () =>
             {
-                await bookingService.CreateBookingAsync(eventId,userId);
+                await bookingService.CreateBookingAsync(eventId, userId);
             });
 
 
+        }
+
+        [Fact]
+        public async Task CancelBooking_OtherUsersBooking_AdminOnly_ReturnsForbidden()
+        {
+            // Arrange
+            await using var scope = _serviceProvider.CreateAsyncScope();
+            var eventService = scope.ServiceProvider.GetRequiredService<IEventService>();
+            // Создаем двух разных пользователей
+            var owner = Domain.User.Create("owner@test.com", PasswordHash.CreateFromPlainText("pass"), UserRole.User);
+            var otherUser = Domain.User.Create("hacker@test.com", PasswordHash.CreateFromPlainText("pass"), UserRole.User);
+
+            var @event = new Event { Title = "Concert", StartAt = DateTime.UtcNow.AddDays(1), EndAt = DateTime.UtcNow.AddDays(5), TotalSeats = 5 };
+            var createdEvent = await eventService.Create(@event);
+            var eventId = createdEvent.Id;
+            // Создаем бронь от имени OWNER
+            using var bookingScope = _serviceProvider.CreateScope();
+            var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
+            var bookingId = await bookingService.CreateBookingAsync(@event.Id, owner.Id);
+
+            // ACT: Пытаемся отменить как OTHER USER
+            await using var hackerScope = _serviceProvider.CreateAsyncScope();
+
+            // Эмуляция того, что текущий HttpContext принадлежит HACKER'у
+            SetupCurrentUser(hackerScope, otherUser.Id, isAdmin: false);
+
+            var hackerBookingService = hackerScope.ServiceProvider.GetRequiredService<IBookingService>();
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<ForbiddenOperationException>(async () =>
+            {
+                await hackerBookingService.CancelBookingAsync(bookingId);
+            });
+
+            Assert.Contains("Недостаточно прав для выполнения операции", ex.Message);
+        }
+
+        [Fact]
+        public async Task CancelBooking_AdminCanCancelOthersBooking_Success()
+        {
+            // Arrange
+            await using var arrangeScope = _serviceProvider.CreateAsyncScope();
+            var eventService = arrangeScope.ServiceProvider.GetRequiredService<IEventService>();
+
+            var owner = Domain.User.Create("owner@test.com", PasswordHash.CreateFromPlainText("pass"), UserRole.User);
+            var adminUser = Domain.User.Create("admin@test.com", PasswordHash.CreateFromPlainText("admin"), UserRole.Admin);
+
+            var @event = new Event
+            {
+                Title = "Concert",
+                StartAt = DateTime.UtcNow.AddHours(1),
+                EndAt = DateTime.UtcNow.AddHours(5),
+                TotalSeats = 5,
+                AvailableSeats = 5
+            };
+            await eventService.Create(@event);
+            var eventId = @event.Id;
+
+            // Создаем бронь от имени OWNER
+            await using var bookingScope = _serviceProvider.CreateAsyncScope();
+            var bookingService = bookingScope.ServiceProvider.GetRequiredService<IBookingService>();
+            var bookingId = await bookingService.CreateBookingAsync(eventId, owner.Id);
+
+            // ACT: Админ пытается отменить ЧУЖУЮ бронь
+            await using var hackerScope = _serviceProvider.CreateAsyncScope();
+
+            SetupCurrentUser(hackerScope, userId: adminUser.Id, isAdmin: true); // Эмулируем АДМИНА
+
+            var hackerBookingService = hackerScope.ServiceProvider.GetRequiredService<IBookingService>();
+
+            // Act: Просто вызываем метод. ОШИБКИ БЫТЬ НЕ ДОЛЖНО.
+            await hackerBookingService.CancelBookingAsync(bookingId);
+
+            // Assert: Проверяем состояние в новой транзакции/контексте
+            await using var newBooking = _serviceProvider.CreateAsyncScope();
+            var bookingService1 = newBooking.ServiceProvider.GetRequiredService<IBookingService>();
+            var updatedBooking = await bookingService1.GetBookingByIdAsync(bookingId);
+            
+            // 1. Бронь должна существовать
+            Assert.NotNull(updatedBooking);
+
+            // 2. Статус должен измениться на Cancelled
+            Assert.Equal(BookingStatus.Cancelled, updatedBooking.Status);
+
+            await using var newEventScope = _serviceProvider.CreateAsyncScope();
+            var eventServiceNew = newEventScope.ServiceProvider.GetRequiredService<IEventService>();
+            var updatedEvent = await eventServiceNew.GetById(eventId);
+            // 3. Места должны вернуться событию (так как статус был Pending или Confirmed)
+            // В данном случае Created -> Pending, значит при отмене место возвращается
+            Assert.Equal(5, updatedEvent.AvailableSeats);
+        }
+        private void SetupCurrentUser(IServiceScope scope, Guid userId, bool isAdmin)
+        {
+            // Получаем экземпляр IHttpContextAccessor из контейнера этого скоупа
+            var accessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+
+            // Создаем Claims (паспорт юзера)
+            var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+        new Claim(ClaimTypes.Role, isAdmin ? UserRole.Admin.ToString() : UserRole.User.ToString())
+    };
+            var identity = new ClaimsIdentity(claims, "TestAuth");
+            var principal = new ClaimsPrincipal(identity);
+
+            // Подменяем HttpContext в Accessor'е
+            accessor.HttpContext = new DefaultHttpContext
+            {
+                User = principal
+            };
         }
     }
 }

@@ -3,6 +3,7 @@ using Application.Services;
 using Domain;
 using Infrastructure;
 using Infrastructure.DataAccess;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
 
@@ -66,7 +67,7 @@ namespace EventServices.Tests
             await using var context = CreateContext();
 
             // Создаем событие с 10 местами
-            var @event = new Event { Title = "Тестовый концерт", StartAt = DateTime.UtcNow, EndAt = DateTime.UtcNow.AddHours(2), TotalSeats = 10, AvailableSeats = 10 };
+            var @event = new Event { Title = "Тестовый концерт", StartAt = DateTime.UtcNow.AddHours(2), EndAt = DateTime.UtcNow.AddHours(5), TotalSeats = 10, AvailableSeats = 10 };
             var user = User.Create(
         login: "testuser@example.com",
         passwordHash: PasswordHash.CreateFromPlainText("qwerty"),
@@ -80,14 +81,16 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
+            var httpContextAccessor = new HttpContextAccessor();
             var bookingService = new BookingService(
         bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy
+        bookingPolicy,
+        httpContextAccessor
     );
             var bookingServise = new BookingService(bookingRepository, eventRepository, userRepository
-                , bookingPolicy);
+                , bookingPolicy, httpContextAccessor);
             var eventService = new EventService(eventRepository); // Предполагаемое имя сервиса
 
             // Act
@@ -135,13 +138,17 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
-            var bookingServise = new BookingService(bookingRepository,
+            var httpContextAccessor = new HttpContextAccessor();
+            var bookingService = new BookingService(
+        bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy);
+        bookingPolicy,
+        httpContextAccessor
+    );
             var eventService = new EventService(eventRepository);
             // Act
-            await bookingServise.ProcessPendingBookingAsync(pendingBooking.Id);
+            await bookingService.ProcessPendingBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();
@@ -177,14 +184,18 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
-            var bookingServise = new BookingService(bookingRepository,
+            var httpContextAccessor = new HttpContextAccessor();
+            var bookingService = new BookingService(
+        bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy);
+        bookingPolicy,
+        httpContextAccessor
+    );
             var eventService = new EventService(eventRepository);
 
             // Act
-            await bookingServise.ProcessPendingBookingAsync(pendingBooking.Id);
+            await bookingService.ProcessPendingBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();
@@ -262,14 +273,18 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
-            var bookingServise = new BookingService(bookingRepository,
+            var httpContextAccessor = new HttpContextAccessor();
+            var bookingService = new BookingService(
+        bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy);
+        bookingPolicy,
+        httpContextAccessor
+    );
             var eventService = new EventService(eventRepository);
 
             // Act
-            await bookingServise.RejectBookingAsync(pendingBooking.Id);
+            await bookingService.RejectBookingAsync(pendingBooking.Id);
 
             // Assert: Проверяем через новый контекст
             await using var verificationContext = CreateContext();

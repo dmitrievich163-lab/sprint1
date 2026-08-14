@@ -50,5 +50,10 @@ namespace Infrastructure
         {
             await _context.SaveChangesAsync();
         }
+
+        public async Task CancelBookingAsync(Guid bookingId)
+        {
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -20,6 +20,7 @@ builder.Services.AddControllers()
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<Application.Services.IAuthService, Application.Services.AuthService>();
 builder.Services.AddScoped<IBookingPolicy, BookingPolicy>();

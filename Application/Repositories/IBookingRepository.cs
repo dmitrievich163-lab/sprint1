@@ -13,5 +13,7 @@ namespace Application.Repositories
         // Методы для явного управления статусом брони.
         Task RejectBookingAsync(Guid bookingId);
         Task ConfirmBookingAsync(Guid bookingId);
+
+        Task CancelBookingAsync(Guid bookingId);
     }
 }

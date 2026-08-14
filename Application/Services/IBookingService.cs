@@ -9,5 +9,6 @@ namespace Application.Services
         Task ProcessPendingBookingAsync(Guid bookingId);
         Task RejectBookingAsync(Guid bookingId);
         Task ConfirmBookingAsync(Guid bookingId);
+        Task CancelBookingAsync(Guid bookingId);
     }
 }

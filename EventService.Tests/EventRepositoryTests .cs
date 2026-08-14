@@ -3,6 +3,7 @@ using Application.Services;
 using Domain;
 using Infrastructure;
 using Infrastructure.DataAccess;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using Testcontainers.PostgreSql;
@@ -268,11 +269,13 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
+            var httpContextAccessor = new HttpContextAccessor();
             var bookingService = new BookingService(
         bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy
+        bookingPolicy,
+        httpContextAccessor
     );
             var eventService = new EventService(eventRepository);
 
@@ -329,11 +332,13 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
+            var httpContextAccessor = new HttpContextAccessor();
             var bookingService = new BookingService(
         bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy
+        bookingPolicy,
+        httpContextAccessor
     );
             var eventService = new EventService(eventRepository);
 
@@ -360,11 +365,13 @@ namespace EventServices.Tests
             var eventRepository = new EventRepository(context);
             var userRepository = new UserRepository(context);
             var bookingPolicy = new BookingPolicy();
+            var httpContextAccessor = new HttpContextAccessor();
             var bookingService = new BookingService(
         bookingRepository,
         eventRepository,
         userRepository,
-        bookingPolicy
+        bookingPolicy,
+        httpContextAccessor
     );
             var eventService = new EventService(eventRepository);
 
