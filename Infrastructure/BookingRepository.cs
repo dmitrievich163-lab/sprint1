@@ -14,9 +14,9 @@ namespace Infrastructure
             _context = context;
         }
 
-        public async Task<Guid> CreateBookingAsync(Guid eventId)
+        public async Task<Guid> CreateBookingAsync(Guid eventId, Guid userId)
         {
-            var booking = new Booking(eventId);
+            var booking = new Booking(eventId,userId);
             await _context.Bookings.AddAsync(booking);
             await _context.SaveChangesAsync();
 
@@ -47,6 +47,11 @@ namespace Infrastructure
         }
 
         public async Task ConfirmBookingAsync(Guid bookingId)
+        {
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task CancelBookingAsync(Guid bookingId)
         {
             await _context.SaveChangesAsync();
         }

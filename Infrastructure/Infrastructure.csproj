@@ -18,6 +18,8 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
+		<PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.22.0" />
 
 		<!-- Провайдер базы данных (выбран PostgreSQL) -->
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
@@ -33,6 +35,10 @@
 		<!-- Пакеты конфигурации для работы AppDbContextFactory без appsettings.json -->
 		<PackageReference Include="Microsoft.Extensions.Configuration.FileExtensions" Version="10.0.10" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.10" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="Migrations\" />
 	</ItemGroup>
 
 </Project>

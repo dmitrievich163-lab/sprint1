@@ -4,11 +4,9 @@ using System.Text;
 
 namespace Domain
 {
-    public enum BookingStatus
+    public enum UserRole: byte
     {
-        Pending,
-        Confirmed,
-        Rejected,
-        Cancelled
+        User = 0,
+        Admin=1
     }
 }

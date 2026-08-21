@@ -54,6 +54,26 @@ namespace Presentation
 
             }
 
+            if (exception is PastEventBookingException)
+            {
+                status = HttpStatusCode.BadRequest;
+                message = exception.Message;
+
+            }
+            if (exception is ActiveBookingsLimitExceededException)
+            {
+                status = HttpStatusCode.Conflict;
+                message = exception.Message;
+
+            }
+
+            if (exception is ForbiddenOperationException)
+            {
+                status = HttpStatusCode.Forbidden;
+                message = exception.Message;
+
+            }
+
             var problemDetails = new
             {
                 type = "about:blank",
