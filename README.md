@@ -1,99 +1,178 @@
-RESTful API для управления событиями и бронированиями билетов. Приложение построено на принципах чистой архитектуры (Clean Architecture).
+# Booking Platform
 
-Технологический стек
-Язык: C# / .NET 8
-База данных: PostgreSQL + Entity Framework Core
-Архитектура: Clean Architecture (Domain / Application / Infrastructure / Presentation)
-Аутентификация: JWT Bearer Tokens
-Тестирование: xUnit, Testcontainers
-Запуск проекта
-Убедитесь, что запущен экземпляр PostgreSQL версии 12+.
-Настройте строку подключения в файле appsettings.json:
+Платформа для управления событиями и бронирования билетов. Построена на принципах **чистой архитектуры** и реализована как **набор микросервисов**, общающихся через **Apache Kafka** и REST.
+
+## Технологический стек
+
+- Язык: C# / .NET 10
+- Базы данных: PostgreSQL + Entity Framework Core (отдельная БД на сервис)
+- Оркестрация обмена: Apache Kafka (+ Zookeeper)
+- Аутентификация: JWT Bearer Tokens
+- Тестирование: xUnit, Testcontainers
+
+## Архитектура
+
+Проект состоит из трёх микросервисов (решение `BookingPlatform.slnx`):
+
+| Сервис | Проект | Порт (http/https) | БД (PostgreSQL) | Назначение |
+|--------|--------|-------------------|-----------------|------------|
+| EventsService | `EventsService/Presentation` | 5002 / 7002 | `eventsdb` | Управление событиями и местами (`AvailableSeats`), приём подтверждений броней из Kafka |
+| BookingsService | `BookingsService/Presentation` | 5003 / 7003 | `bookingsdb` | Бронирование, фоновое подтверждение брон, публикация событий в Kafka |
+| UsersService | `UsersService/Presentation` | 5001 / 7001 | `usersdb` | Регистрация / аутентификация / JWT |
+
+Каждый сервис оформлен по слоям: **Domain / Application / Infrastructure / Presentation**.
+Общие контракты Kafka вынесены в проект `SharedContracts`.
+
+### Схема обмена данными
+
+```
+ UsersService          EventsService             BookingsService              Kafka
+  (auth/JWT)            (события, места)          (бронирование)
+     │                    │                            │
+     │ JWT token          │   GET /api/events/{id}      │  POST /api/events/{id}/book
+     │───────────────────►│◄───────────────────────────│
+     │                    │                             │ запись Booking (Pending)
+     │                    │                             │
+     │                    │      BookingProcessingHostedService (каждые 5с)
+     │                    │            │  GET /api/events/{id}
+     │                    │◄───────────│ логика подтверждения
+     │                    │             │ booking.Confirm() + PublishBookingConfirmed
+     │                    │             │──────────────────────────────────────────────► topic: booking-confirmed
+     │                    │  BookingConfirmedConsumer (EventsService)
+     │                    │◄────────────────────────────────────────────────────────────│
+     │                    │  уменьшение AvailableSeats (TryReserveSeats)
+```
+
+**Поток бронирования (асинхронный):**
+
+1. Пользователь вызывает `POST /api/events/{id}/book` → создаётся бронирование со статусом **`Pending`**.
+2. Фоновый сервис `BookingProcessingHostedService` каждые ~5 секунд обрабатывает `Pending`-брони:
+   - если мест достаточно → статус **`Confirmed`**, публикуется сообщение `BookingConfirmed` в топик `booking-confirmed`;
+   - если мест нет или событие недоступно → статус **`Rejected`**.
+3. EventsService через consumer `BookingConfirmedConsumer` получает сообщение и **уменьшает `AvailableSeats`** события на `SeatCount`.
+
+## Требования к окружению
+
+- .NET SDK 10
+- PostgreSQL 12+ (один инстанс, в нём создаются БД `eventsdb`, `bookingsdb`, `usersdb`)
+- Apache Kafka + Zookeeper (доступны на `localhost:9092`)
+
+## Запуск проекта
+
+1. Убедитесь, что запущены PostgreSQL и Kafka/Zookeeper.
+
+2. Настройте строки подключения и секции конфигурации в `appsettings.json` каждого сервиса:
+
+```jsonc
+// EventsService/Presentation/appsettings.json
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=eventapi;Username=postgres;Password=your_password"
-  }
+  "ConnectionStrings": { "EventsConnection": "Host=localhost;Port=5432;Database=eventsdb;Username=postgres;Password=postgres" },
+  "Kafka": { "BootstrapServers": "localhost:9092" },
+  "Jwt": { "Secret": "...", "Issuer": "MyBookingApp", "Audience": "MyBookingAppClients", "LifetimeMinutes": 60 }
 }
+```
 
-Примените миграции базы данных:
-dotnet ef database update --project ./src/AspNetCoreApi.Infrastructure --startup-project ./src/AspNetCoreApi.Api
-
-Запустите приложение:
-dotnet run --project ./src/AspNetCoreApi.Api
-
-Документация Swagger доступна по адресу: https://localhost:{port}/swagger.
-
-Аутентификация и Авторизация (JWT)
-API использует JSON Web Token (JWT) для защиты эндпоинтов.
-
-Регистрация пользователя
-Эндпоинт регистрации создает нового пользователя.
-
-POST /api/auth/register
-Content-Type: application/json
-
+```jsonc
+// BookingsService/Presentation/appsettings.json
 {
-  "login": "user@example.com",
-  "password": "StrongPassword123",
-  "role": "User" 
+  "ConnectionStrings": { "BookingsConnection": "Host=localhost;Port=5432;Database=bookingsdb;Username=postgres;Password=postgres" },
+  "Kafka": { "BootstrapServers": "localhost:9092" },
+  "EventsService": { "BaseUrl": "http://localhost:5002" },   // адрес EventsService
+  "Jwt": { "Secret": "...", "Issuer": "MyBookingApp", "Audience": "MyBookingAppClients", "LifetimeMinutes": 60 }
 }
+```
 
-Вход в систему (Получение токена)
-
-POST /api/auth/login
-Content-Type: application/json
-
+```jsonc
+// UsersService/Presentation/appsettings.json
 {
-  "login": "user@example.com",
-  "password": "StrongPassword123"
+  "ConnectionStrings": { "UsersConnection": "Host=localhost;Port=5432;Database=usersdb;Username=postgres;Password=postgres" },
+  "Jwt": { "Secret": "...", "Issuer": "MyBookingApp", "Audience": "MyBookingAppClients", "LifetimeMinutes": 60 }
 }
+```
 
-Ответ:
-Успешный ответ вернет объект { "token": "eyJhbGciOi..." }. Этот токен необходимо передавать во всех последующих запросах в заголовке:
-Authorization: Bearer <ваш_токен>
+> Примечание: секрет JWT должен совпадать во всех сервисах, чтобы токены, выданные UsersService, принимались остальными.
 
-Эндпоинты API
-Управление событиями (/api/events)
-Метод	URL	Описание	Доступ
-GET	/api/events	Получить список событий с фильтрацией и пагинацией.	Все
-GET	/api/events/{id}	Получить детали события.	Все
-POST	/api/events	Создать новое событие.	Только Admin
-PUT	/api/events/{id}	Обновить данные события.	Только Admin
-DELETE	/api/events/{id}	Удалить событие.	Только Admin
-Управление бронями (/api/bookings & /api/events/{id}/book)
-Метод	URL	Описание	Доступ
-POST	/api/events/{eventId}/book	Забронировать место на событии.	Авторизованные пользователи
-DELETE	/api/bookings/{id}	Отменить бронирование.	Владелец ИЛИ Admin
-GET	/api/bookings/{id}	Получить информацию о своей броне.	Владелец ИЛИ Admin
-Поведение системы подтверждения броней
-Система работает асинхронно через Background Service (PendingBookingProcessor):
+3. Запустите сервисы (порты и переменные окружения берутся из `Properties/launchSettings.json`):
 
-При создании бронь получает статус Pending.
-Фоновый сервис каждые N секунд проверяет Pending-брони.
-Если места есть — статус меняется на Confirmed, количество мест уменьшается.
-Если мест нет — статус меняется на Rejected.
-Для тестирования можно создать несколько броней вручную и подождать один цикл процессора, либо вызвать метод обработки принудительно из тестов.
+```bash
+dotnet run --project UsersService/Presentation
+dotnet run --project EventsService/Presentation
+dotnet run --project BookingsService/Presentation
+```
 
-Конфигурация appsettings.json (Security)
-Для работы авторизации обязательно заполните секцию JwtSettings:
+При первом запуске миграции БД применяются автоматически (в `Program.cs` каждого сервиса); топик Kafka `booking-confirmed` создаётся автоматически.
 
-"Jwt": {
-  "Secret": "ВАШ_СУПЕР_ДЛИННЫЙ_И_СЛУЧАЙНЫЙ_СЕКРЕТНЫЙ_КЛЮЧ_НЕ_МЕНЕЕ_32_СИМВОЛОВ",
-  "Issuer": "EventService",
-  "Audience": "EventClients",
-  "LifetimeMinutes": 60
+Swagger каждого сервиса доступен по адресам:
+- UsersService: `http://localhost:5001/swagger`
+- EventsService: `http://localhost:5002/swagger`
+- BookingsService: `http://localhost:5003/swagger`
+
+## Аутентификация (JWT)
+
+Получите токен через UsersService и передавайте его в заголовке `Authorization: Bearer <token>`.
+
+**Регистрация** — `POST http://localhost:5001/api/auth/register`
+```json
+{ "login": "user@example.com", "password": "StrongPassword123", "role": "User" }
+```
+
+**Вход** — `POST http://localhost:5001/api/auth/login`
+```json
+{ "login": "user@example.com", "password": "StrongPassword123" }
+```
+Ответ содержит `token`, который используйте в дальнейших запросах.
+
+## API
+
+### EventsService — события (`http://localhost:5002`)
+| Метод | URL | Описание | Доступ |
+|-------|-----|----------|--------|
+| GET | `/api/events` | Список событий (фильтрация по title/from/to, пагинация) | Все |
+| GET | `/api/events/{id}` | Детали события | Все |
+| POST | `/api/events` | Создать событие | Admin |
+| PUT | `/api/events/{id}` | Обновить событие | Admin |
+| DELETE | `/api/events/{id}` | Удалить событие | Admin |
+
+Пример создания события:
+```json
+{
+  "title": "Концерт",
+  "description": "Описание",
+  "startAt": "2026-09-01T19:00:00Z",
+  "endAt": "2026-09-01T21:00:00Z",
+  "totalSeats": 100
 }
+```
+Поле `AvailableSeats` при создании приравнивается к `TotalSeats`.
 
-Тестирование
-Проект содержит два типа тестов:
+### BookingsService — бронирования (`http://localhost:5003`)
+| Метод | URL | Описание | Доступ |
+|-------|-----|----------|--------|
+| POST | `/api/events/{id}/book` | Создать бронь (статус `Pending`) | User, Admin |
+| GET | `/api/bookings/{id}` | Информация о брони | Владелец или Admin |
+| DELETE | `/api/bookings/{id}` | Отменить бронь | Владелец или Admin |
 
-Application Layer Tests (Unit):
-Проверяют бизнес-правила без запуска веб-сервера.
+## Статусы бронирования
 
-dotnet test AspNetCoreApi.Application.Tests
+- **`Pending`** — создана, ожидает обработки фоновым сервисом.
+- **`Confirmed`** — место зарезервировано, `AvailableSeats` в EventsService уменьшено.
+- **`Rejected`** — недостаточно мест либо событие недоступно.
+- **`Cancelled`** — отменено владельцем или администратором (**отмена возвращает место**).
 
-Integration Tests (Infrastructure):
-Используют Docker-контейнер PostgreSQL (Testcontainers) для проверки реального взаимодействия с БД.
+> Примечание. Уменьшение `AvailableSeats` происходит **асинхронно** (после подтверждения брони через Kafka). Сразу после `POST /book` значение в БД может не измениться — дождитесь следующего цикла фонового процессора (~5 секунд) и проверки статуса `Confirmed`.
 
-# Убедитесь, что Docker Desktop запущен
-dotnet test AspNetCoreApi.IntegrationTests
+## Бизнес-правила
+
+- Нельзя бронировать событие в прошлом.
+- Лимит активных брон на пользователя — 10.
+- Нельзя забронировать больше мест, чем доступно (`AvailableSeats`).
+- Отмена подтверждённой брони возвращает место событию.
+
+## Тестирование
+
+Проекты тестов:
+- Unit/интеграционные тесты служб бронирования и репозиториев: `EventService.Tests`.
+
+```bash
+dotnet test EventService.Tests
+```

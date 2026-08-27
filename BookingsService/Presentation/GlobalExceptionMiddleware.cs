@@ -1,0 +1,86 @@
+using System.Net;
+using System.Text.Json;
+using BookingsService.Domain;
+using Microsoft.AspNetCore.WebUtilities;
+using System.ComponentModel.DataAnnotations;
+
+namespace BookingsService.Presentation;
+
+public class GlobalExceptionMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<GlobalExceptionMiddleware> _logger;
+
+    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        HttpStatusCode status = HttpStatusCode.InternalServerError;
+        string message = "An unexpected error occurred.";
+
+        if (exception is ArgumentException or InvalidOperationException or ValidationException)
+        {
+            status = HttpStatusCode.BadRequest;
+            message = exception.Message;
+        }
+        else if (exception is KeyNotFoundException)
+        {
+            status = HttpStatusCode.NotFound;
+            message = exception.Message;
+        }
+        else if (exception is NoAvailableSeatsException)
+        {
+            status = HttpStatusCode.Conflict;
+            message = exception.Message;
+        }
+        else if (exception is PastEventBookingException)
+        {
+            status = HttpStatusCode.BadRequest;
+            message = exception.Message;
+        }
+        else if (exception is ActiveBookingsLimitExceededException)
+        {
+            status = HttpStatusCode.Conflict;
+            message = exception.Message;
+        }
+        else if (exception is ForbiddenOperationException)
+        {
+            status = HttpStatusCode.Forbidden;
+            message = exception.Message;
+        }
+        else if (exception is UnauthorizedAccessException)
+        {
+            status = HttpStatusCode.Unauthorized;
+            message = exception.Message;
+        }
+
+        var problemDetails = new
+        {
+            type = "about:blank",
+            title = ((int)status).ToString(),
+            status = (int)status,
+            detail = message
+        };
+
+        context.Response.StatusCode = (int)status;
+        context.Response.ContentType = "application/problem+json";
+
+        return context.Response.WriteAsync(JsonSerializer.Serialize(problemDetails));
+    }
+}

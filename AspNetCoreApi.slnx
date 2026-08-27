@@ -1,7 +1,7 @@
 <Solution>
-  <Project Path="Application/Application.csproj" />
-  <Project Path="Domain/Domain.csproj" />
-  <Project Path="EventService.Tests/EventService.Tests.csproj" />
-  <Project Path="Infrastructure/Infrastructure.csproj" />
-  <Project Path="Presentation/Presentation.csproj" />
+  <Project Path="../../../../../../source/repos/sprint1/Application/Application.csproj" />
+  <Project Path="../../../../../../source/repos/sprint1/Domain/Domain.csproj" />
+  <Project Path="../../../../../../source/repos/sprint1/EventService.Tests/EventService.Tests.csproj" />
+  <Project Path="../../../../../../source/repos/sprint1/Infrastructure/Infrastructure.csproj" />
+  <Project Path="../../../../../../source/repos/sprint1/Presentation/Presentation.csproj" />
 </Solution>
