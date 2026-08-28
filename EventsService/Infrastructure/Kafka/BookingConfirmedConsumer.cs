@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Confluent.Kafka;
+using EventsService.Domain;
 using EventsService.Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -52,16 +53,29 @@ public class BookingConfirmedConsumer : BackgroundService
                     if (evt == null)
                     {
                         _logger.LogWarning("Failed to deserialize BookingConfirmed message, skipping.");
+                        consumer.Commit(consumeResult);
                         continue;
                     }
 
                     using var scope = _scopeFactory.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
 
+                    var alreadyProcessed = await context.ProcessedBookings
+                        .AnyAsync(p => p.BookingId == evt.BookingId, stoppingToken);
+                    if (alreadyProcessed)
+                    {
+                        _logger.LogInformation(
+                            "Booking {BookingId} already processed, skipping duplicate.",
+                            evt.BookingId);
+                        consumer.Commit(consumeResult);
+                        continue;
+                    }
+
                     var @event = await context.Events.FirstOrDefaultAsync(e => e.Id == evt.EventId, stoppingToken);
                     if (@event == null)
                     {
                         _logger.LogWarning("Event {EventId} not found, skipping seat decrement.", evt.EventId);
+                        consumer.Commit(consumeResult);
                         continue;
                     }
 
@@ -70,11 +84,15 @@ public class BookingConfirmedConsumer : BackgroundService
                         _logger.LogWarning(
                             "Not enough seats for event {EventId}. Available: {Available}, requested: {Requested}. Skipping.",
                             @event.Id, @event.AvailableSeats, evt.SeatCount);
+                        consumer.Commit(consumeResult);
                         continue;
                     }
 
                     @event.TryReserveSeats(evt.SeatCount);
+                    context.ProcessedBookings.Add(new ProcessedBooking { BookingId = evt.BookingId });
                     await context.SaveChangesAsync(stoppingToken);
+
+                    consumer.Commit(consumeResult);
 
                     _logger.LogInformation(
                         "Decremented {Count} seats for event {EventId}. New available: {Available}.",

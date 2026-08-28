@@ -9,35 +9,23 @@ public class BookingService : IBookingService
 {
     private readonly IBookingRepository _bookingRepository;
     private readonly IBookingPolicy _policy;
-    private readonly IEventServiceClient _eventServiceClient;
     private readonly IEventPublisher _eventPublisher;
     private readonly ICurrentUserService _currentUser;
 
     public BookingService(
         IBookingRepository bookingRepository,
         IBookingPolicy policy,
-        IEventServiceClient eventServiceClient,
         IEventPublisher eventPublisher,
         ICurrentUserService currentUser)
     {
         _bookingRepository = bookingRepository;
         _policy = policy;
-        _eventServiceClient = eventServiceClient;
         _eventPublisher = eventPublisher;
         _currentUser = currentUser;
     }
 
     public async Task<Guid> CreateBookingAsync(Guid eventId, Guid userId)
     {
-        var eventDto = await _eventServiceClient.GetEventAsync(eventId);
-        if (eventDto == null)
-            throw new KeyNotFoundException($"Событие с ID {eventId} не найдено.");
-
-        if (!eventDto.TryReserveSeats(1))
-            throw new NoAvailableSeatsException("No available seats for this event.");
-
-        _policy.CheckEventAvailability(eventDto.StartAt);
-
         var activeBookings = await _bookingRepository.GetActiveBookingsByUserIdAsync(userId);
         _policy.CheckActiveBookingLimit(activeBookings, 10);
 
@@ -55,35 +43,17 @@ public class BookingService : IBookingService
         if (booking == null || booking.Status != BookingStatus.Pending)
             return;
 
-        var eventDto = await _eventServiceClient.GetEventAsync(booking.EventId);
-        if (eventDto == null)
-        {
-            booking.Reject();
-            await _bookingRepository.RejectBookingAsync(bookingId);
-            return;
-        }
+        booking.Confirm();
+        await _bookingRepository.ConfirmBookingAsync(bookingId);
 
-        _policy.CheckEventAvailability(eventDto.StartAt);
-
-        if (eventDto.TryReserveSeats(1))
+        await _eventPublisher.PublishBookingConfirmedAsync(new BookingConfirmed
         {
-            booking.Confirm();
-            await _bookingRepository.ConfirmBookingAsync(bookingId);
-
-            await _eventPublisher.PublishBookingConfirmedAsync(new BookingConfirmed
-            {
-                BookingId = booking.Id,
-                EventId = booking.EventId,
-                UserId = booking.UserId,
-                SeatCount = 1,
-                ConfirmedAt = booking.ProcessedAt!.Value
-            });
-        }
-        else
-        {
-            booking.Reject();
-            await _bookingRepository.RejectBookingAsync(bookingId);
-        }
+            BookingId = booking.Id,
+            EventId = booking.EventId,
+            UserId = booking.UserId,
+            SeatCount = 1,
+            ConfirmedAt = booking.ProcessedAt!.Value
+        });
     }
 
     public async Task RejectBookingAsync(Guid bookingId)
@@ -107,13 +77,6 @@ public class BookingService : IBookingService
 
         if (booking.Status != BookingStatus.Pending)
             throw new InvalidOperationException($"Невозможно подтвердить бронь со статусом {booking.Status}.");
-
-        var eventDto = await _eventServiceClient.GetEventAsync(booking.EventId);
-        if (eventDto == null)
-            throw new KeyNotFoundException($"Событие {booking.EventId} не найдено.");
-
-        if (!eventDto.TryReserveSeats(1))
-            throw new NoAvailableSeatsException("Не удалось подтвердить бронь: закончились места.");
 
         booking.Confirm();
         await _bookingRepository.ConfirmBookingAsync(bookingId);

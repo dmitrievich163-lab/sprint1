@@ -1,6 +1,6 @@
 # Booking Platform
 
-Платформа для управления событиями и бронирования билетов. Построена на принципах **чистой архитектуры** и реализована как **набор микросервисов**, общающихся через **Apache Kafka** и REST.
+Платформа для управления событиями и бронирования билетов. Построена на принципах **чистой архитектуры** и реализована как **набор микросервисов**, обменивающихся данными **только через Apache Kafka**.
 
 ## Технологический стек
 
@@ -29,13 +29,11 @@
  UsersService          EventsService             BookingsService              Kafka
   (auth/JWT)            (события, места)          (бронирование)
      │                    │                            │
-     │ JWT token          │   GET /api/events/{id}      │  POST /api/events/{id}/book
+     │ JWT token          │                            │  POST /api/events/{id}/book
      │───────────────────►│◄───────────────────────────│
      │                    │                             │ запись Booking (Pending)
      │                    │                             │
      │                    │      BookingProcessingHostedService (каждые 5с)
-     │                    │            │  GET /api/events/{id}
-     │                    │◄───────────│ логика подтверждения
      │                    │             │ booking.Confirm() + PublishBookingConfirmed
      │                    │             │──────────────────────────────────────────────► topic: booking-confirmed
      │                    │  BookingConfirmedConsumer (EventsService)
@@ -43,13 +41,13 @@
      │                    │  уменьшение AvailableSeats (TryReserveSeats)
 ```
 
+Обмен между BookingsService и EventsService происходит **только через Kafka**, без синхронных HTTP-вызовов. Валидацию события (существование, доступность мест, дата) выполняет EventsService асинхронно при обработке сообщения из топика.
+
 **Поток бронирования (асинхронный):**
 
 1. Пользователь вызывает `POST /api/events/{id}/book` → создаётся бронирование со статусом **`Pending`**.
-2. Фоновый сервис `BookingProcessingHostedService` каждые ~5 секунд обрабатывает `Pending`-брони:
-   - если мест достаточно → статус **`Confirmed`**, публикуется сообщение `BookingConfirmed` в топик `booking-confirmed`;
-   - если мест нет или событие недоступно → статус **`Rejected`**.
-3. EventsService через consumer `BookingConfirmedConsumer` получает сообщение и **уменьшает `AvailableSeats`** события на `SeatCount`.
+2. Фоновый сервис `BookingProcessingHostedService` каждые ~5 секунд обрабатывает `Pending`-брони: статус меняется на **`Confirmed`** и публикуется сообщение `BookingConfirmed` в топик `booking-confirmed`.
+3. EventsService через consumer `BookingConfirmedConsumer` получает сообщение, проверяет доступность места и **уменьшает `AvailableSeats`** события на `SeatCount`. Сообщения обрабатываются идемпотентно (таблица `ProcessedBookings`), а offset коммитится вручную после успешного сохранения.
 
 ## Требования к окружению
 
@@ -57,7 +55,21 @@
 - PostgreSQL 12+ (один инстанс, в нём создаются БД `eventsdb`, `bookingsdb`, `usersdb`)
 - Apache Kafka + Zookeeper (доступны на `localhost:9092`)
 
-## Запуск проекта
+## Быстрый запуск через Docker
+
+Весь стек (Zookeeper, Kafka, PostgreSQL и три микросервиса) поднимается одной командой:
+
+```bash
+docker compose up --build
+```
+
+- Строки подключения к БД и адрес Kafka для сервисов задаются через переменные окружения в `docker-compose.yml` (сервисы обращаются к контейнерам `postgres` и `kafka` по имени, а не через `localhost`).
+- Каждый микросервис собирается из собственного multi-stage `Dockerfile`, а миграции БД применяются автоматически при старте.
+- Остановить и удалить контейнеры вместе с volume: `docker compose down -v`.
+
+Swagger каждого сервиса: `http://localhost:5001/swagger`, `http://localhost:5002/swagger`, `http://localhost:5003/swagger`.
+
+## Запуск проекта (без Docker)
 
 1. Убедитесь, что запущены PostgreSQL и Kafka/Zookeeper.
 
@@ -77,7 +89,6 @@
 {
   "ConnectionStrings": { "BookingsConnection": "Host=localhost;Port=5432;Database=bookingsdb;Username=postgres;Password=postgres" },
   "Kafka": { "BootstrapServers": "localhost:9092" },
-  "EventsService": { "BaseUrl": "http://localhost:5002" },   // адрес EventsService
   "Jwt": { "Secret": "...", "Issuer": "MyBookingApp", "Audience": "MyBookingAppClients", "LifetimeMinutes": 60 }
 }
 ```

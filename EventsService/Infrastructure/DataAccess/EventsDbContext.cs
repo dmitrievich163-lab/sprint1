@@ -8,6 +8,7 @@ public sealed class EventsDbContext : DbContext
     public EventsDbContext(DbContextOptions<EventsDbContext> options) : base(options) { }
 
     public DbSet<Event> Events { get; set; } = null!;
+    public DbSet<ProcessedBooking> ProcessedBookings { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -30,12 +30,6 @@ builder.Services.AddScoped<IBookingRepository, BookingRepository>();
 builder.Services.AddScoped<IBookingPolicy, BookingPolicy>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-// EventServiceClient via HttpClient
-builder.Services.AddHttpClient<IEventServiceClient, EventServiceClient>(client =>
-{
-    client.BaseAddress = new Uri(builder.Configuration["EventsService:BaseUrl"] ?? "http://localhost:5002");
-});
-
 // Kafka producer
 var kafkaBootstrap = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
 builder.Services.AddSingleton(new ProducerConfig { BootstrapServers = kafkaBootstrap });
