@@ -1,0 +1,42 @@
+<Solution>
+  <Folder Name="/BookingsService/" />
+  <Folder Name="/BookingsService/Application/">
+    <Project Path="BookingsService/Application/BookingsService.Application.csproj" />
+  </Folder>
+  <Folder Name="/BookingsService/Domain/">
+    <Project Path="BookingsService/Domain/BookingsService.Domain.csproj" />
+  </Folder>
+  <Folder Name="/BookingsService/Infrastructure/">
+    <Project Path="BookingsService/Infrastructure/BookingsService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/BookingsService/Presentation/">
+    <Project Path="BookingsService/Presentation/BookingsService.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/EventsService/" />
+  <Folder Name="/EventsService/Application/">
+    <Project Path="EventsService/Application/EventsService.Application.csproj" />
+  </Folder>
+  <Folder Name="/EventsService/Domain/">
+    <Project Path="EventsService/Domain/EventsService.Domain.csproj" />
+  </Folder>
+  <Folder Name="/EventsService/Infrastructure/">
+    <Project Path="EventsService/Infrastructure/EventsService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/EventsService/Presentation/">
+    <Project Path="EventsService/Presentation/EventsService.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/UsersService/" />
+  <Folder Name="/UsersService/Application/">
+    <Project Path="UsersService/Application/UsersService.Application.csproj" />
+  </Folder>
+  <Folder Name="/UsersService/Domain/">
+    <Project Path="UsersService/Domain/UsersService.Domain.csproj" />
+  </Folder>
+  <Folder Name="/UsersService/Infrastructure/">
+    <Project Path="UsersService/Infrastructure/UsersService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/UsersService/Presentation/">
+    <Project Path="UsersService/Presentation/UsersService.Presentation.csproj" />
+  </Folder>
+  <Project Path="SharedContracts/SharedContracts.csproj" />
+</Solution>

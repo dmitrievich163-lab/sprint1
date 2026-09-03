@@ -1,0 +1,89 @@
+using System.ComponentModel.DataAnnotations;
+using EventsService.Application.Services;
+using EventsService.Domain;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EventsService.Presentation.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class EventsController : ControllerBase
+{
+    private readonly IEventService _eventService;
+
+    public EventsController(IEventService eventService)
+    {
+        _eventService = eventService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? title,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var events = await _eventService.GetAll(title, from, to, page, pageSize);
+        return Ok(events);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var eventItem = await _eventService.GetById(id);
+        return Ok(eventItem);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Create([FromBody] Event newEvent)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage);
+
+            var errorMessage = "Validation failed: " + string.Join("; ", errors);
+            throw new ValidationException(errorMessage);
+        }
+
+        var createdEvent = await _eventService.Create(newEvent);
+        return CreatedAtAction(nameof(GetById), new { id = createdEvent.Id }, createdEvent);
+    }
+
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] Event updatedEvent)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage);
+
+            var errorMessage = "Validation failed: " + string.Join("; ", errors);
+            throw new ValidationException(errorMessage);
+        }
+
+        var result = await _eventService.Update(id, updatedEvent);
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        await _eventService.Delete(id);
+        return NoContent();
+    }
+}
