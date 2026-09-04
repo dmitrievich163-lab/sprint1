@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Confluent.Kafka;
+using EventsService.Application.Cache;
 using EventsService.Domain;
 using EventsService.Infrastructure.DataAccess;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,7 @@ public class BookingConfirmedConsumer : BackgroundService
 
                     using var scope = _scopeFactory.CreateScope();
                     var context = scope.ServiceProvider.GetRequiredService<EventsDbContext>();
+                    var cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
 
                     var alreadyProcessed = await context.ProcessedBookings
                         .AnyAsync(p => p.BookingId == evt.BookingId, stoppingToken);
@@ -91,6 +93,8 @@ public class BookingConfirmedConsumer : BackgroundService
                     @event.TryReserveSeats(evt.SeatCount);
                     context.ProcessedBookings.Add(new ProcessedBooking { BookingId = evt.BookingId });
                     await context.SaveChangesAsync(stoppingToken);
+
+                    await cache.RemoveAsync(CacheOptions.EventKeyPrefix + @event.Id, stoppingToken);
 
                     consumer.Commit(consumeResult);
 

@@ -42,6 +42,12 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7
+    container_name: booking-redis
+    ports:
+      - "6379:6379"
+
   users-service:
     build:
       context: .
@@ -66,10 +72,13 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      redis:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__EventsConnection: "Host=postgres;Port=5432;Database=eventsdb;Username=postgres;Password=postgres"
       Kafka__BootstrapServers: "kafka:9092"
+      Redis__ConnectionString: "redis:6379"
     ports:
       - "5002:5002"
 

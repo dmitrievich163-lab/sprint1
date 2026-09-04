@@ -5,6 +5,7 @@ namespace EventsService.Application.Repositories;
 public interface IEventRepository
 {
     Task<IEnumerable<Event>> GetAllAsync();
+    Task<IEnumerable<Event>> GetTop10Async();
     Task<PaginatedResult<Event>> GetAllAsync(string? title, DateTime? from, DateTime? to, int page, int pageSize);
     Task<Event?> GetByIdAsync(Guid id);
     Task<Event> CreateAsync(Event newEvent);

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using EventsService.Application.Cache;
 using EventsService.Application.Repositories;
 using EventsService.Application.Services;
 using EventsService.Domain;
@@ -8,15 +9,30 @@ namespace EventsService.Application.Services;
 public class EventService : IEventService
 {
     private readonly IEventRepository _eventRepository;
+    private readonly ICacheService _cache;
+    private readonly CacheOptions _cacheOptions;
 
-    public EventService(IEventRepository eventRepository)
+    public EventService(IEventRepository eventRepository, ICacheService cache, CacheOptions cacheOptions)
     {
         _eventRepository = eventRepository;
+        _cache = cache;
+        _cacheOptions = cacheOptions;
     }
 
     public async Task<IEnumerable<Event>> GetAll()
     {
         return await _eventRepository.GetAllAsync();
+    }
+
+    public async Task<IEnumerable<Event>> GetTop10()
+    {
+        var cached = await _cache.GetAsync<IEnumerable<Event>>(CacheOptions.TopEventsKey);
+        if (cached != null)
+            return cached;
+
+        var top = await _eventRepository.GetTop10Async();
+        await _cache.SetAsync(CacheOptions.TopEventsKey, top, _cacheOptions.TopEventsTtl);
+        return top;
     }
 
     public async Task<PaginatedResult<Event>> GetAll(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
@@ -26,10 +42,17 @@ public class EventService : IEventService
 
     public async Task<Event> GetById(Guid id)
     {
+        string key = CacheOptions.EventKeyPrefix + id;
+
+        var cached = await _cache.GetAsync<Event>(key);
+        if (cached != null)
+            return cached;
+
         var eventItem = await _eventRepository.GetByIdAsync(id);
         if (eventItem == null)
             throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
 
+        await _cache.SetAsync(key, eventItem, _cacheOptions.EventTtl);
         return eventItem;
     }
 
@@ -60,13 +83,23 @@ public class EventService : IEventService
         existing.EndAt = updatedEvent.EndAt;
         existing.AvailableSeats = updatedEvent.AvailableSeats;
 
-        return await _eventRepository.UpdateAsync(id, updatedEvent);
+        var result = await _eventRepository.UpdateAsync(id, updatedEvent);
+
+        await _cache.RemoveAsync(CacheOptions.EventKeyPrefix + id);
+
+        return result;
     }
 
     public async Task<bool> Delete(Guid id)
     {
         var existing = await _eventRepository.GetByIdAsync(id) ??
                        throw new KeyNotFoundException($"Событие с ID {id} не найдено.");
-        return await _eventRepository.DeleteAsync(id);
+
+        bool deleted = await _eventRepository.DeleteAsync(id);
+
+        if (deleted)
+            await _cache.RemoveAsync(CacheOptions.EventKeyPrefix + id);
+
+        return deleted;
     }
 }
