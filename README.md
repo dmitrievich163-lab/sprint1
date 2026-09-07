@@ -10,6 +10,7 @@
 - Оркестрация обмена: Apache Kafka (+ Zookeeper)
 - Аутентификация: JWT Bearer Tokens
 - Тестирование: xUnit, Testcontainers
+- Наблюдаемость: OpenTelemetry (трейсы/метрики), Serilog (структурированные логи), Prometheus + Grafana, Jaeger
 
 ## Архитектура
 
@@ -222,6 +223,65 @@ Swagger каждого сервиса доступен по адресам:
 Кеш спроектирован так, чтобы **деградировать без ошибки для клиента**. Интерфейс `ICacheService` (слой Application) реализован в Infrastructure (`RedisCacheService`) поверх StackExchange.Redis. Все методы кеша оборачиваются в try/catch: любые ошибки Redis логируются, но **не пробрасываются** — при недоступном Redis запрос прозрачно уходит напрямую в базу данных.
 
 Клиент Redis регистрируется в DI один раз как синглтон (`IConnectionMultiplexer`) — это тяжёлый потокобезопасный объект, переиспользуемый на протяжении всего жизненного цикла приложения. Подключение настраивается с `AbortOnConnectFail = false`, поэтому сервис корректно запускается даже при недоступном Redis.
+
+## Наблюдаемость
+
+Каждый сервис подключён к **OpenTelemetry** (трейсы и метрики) и пишет **структурированные JSON-логи** через Serilog. Из этой системы:
+- **Prometheus** собирает метрики с эндпоинта `/metrics` каждого сервиса;
+- **Jaeger** принимает трейсы по протоколу OTLP (`http://jaeger:4317` или `http://localhost:4317`);
+- **Grafana** показывает дашборд поверх метрик Prometheus.
+
+### Что собирается
+
+| Категория | Источник | Что видно |
+|-----------|----------|-----------|
+| HTTP-метрики | `OpenTelemetry.Instrumentation.AspNetCore` | RPS, латентность (p50/p95/p99), активные запросы, коды ответов |
+| HTTP-трейсы | `OpenTelemetry.Instrumentation.AspNetCore` | Диаграммы запросов в Jaeger |
+| Внешние HTTP-вызовы | `OpenTelemetry.Instrumentation.Http` | Запросы между сервисами и во внешние системы |
+| EF Core | `OpenTelemetry.Instrumentation.EntityFrameworkCore` | SQL-запросы к базе в трейсах (`db.system`, `db.statement`) |
+| Runtime (.NET) | `OpenTelemetry.Instrumentation.Runtime` | Память (`process_working_set_bytes`), GC (`dotnet_gc_*`), потоки |
+| Логи | Serilog (`CompactJsonFormatter`) | Все логи в JSON в stdout |
+
+Логи выводятся как JSON-строки (формат `CompactJsonFormatter`) — при перенаправлении в файл или агрегатор их легко парсить, а в контейнере они попадают в `docker logs`.
+
+### Как запустить (услуги локально, инфраструктура в Docker)
+
+Инфраструктура наблюдения добавлена в `docker-compose.infra.yml`:
+
+```bash
+docker compose -f docker-compose.infra.yml up -d
+```
+
+После запуска:
+- **Prometheus**: http://localhost:9090 (targets на http://localhost:9090/targets)
+- **Jaeger**: http://localhost:16686
+- **Grafana**: http://localhost:3000 (логин `admin`, пароль `admin`)
+
+### Как запустить (все в Docker)
+
+Полный стек с наблюдением — единый `docker-compose.yml`:
+
+```bash
+docker compose up --build
+```
+
+В этом режиме трейсы отправляются по адресу `http://jaeger:4317` (порт 4317 на host пробрасывается на `localhost:4317`).
+
+### Дашборд Grafana
+
+Готовый дашборд лежит в репозитории: `grafana/booking-platform.json`. Импортируйте его в Grafana (**Dashboards → Import → upload JSON**) и выберите источник данных Prometheus (`http://prometheus:9090`). Дашборд показывает:
+- HTTP-latency p99 и среднюю по каждому сервису;
+- RPS и процент ошибок 5xx;
+- Использование памяти (`process_working_set_bytes`) и активные запросы;
+- Объекты в куче GC и частоту сборок.
+
+### Как проверить
+
+- Метрики сервиса: `Invoke-RestMethod http://localhost:5001/metrics`, `.../5002/metrics`, `.../5003/metrics`
+- Трейсы: сгенерируйте несколько запросов, затем откройте Jaeger UI → выберите `events-service`/`bookings-service`/`users-service`.
+- Prometheus: http://localhost:9090/targets — все три target в состоянии `UP`.
+
+> Примечание: оба стека (`docker-compose.yml` и `docker-compose.infra.yml`) одновременно не запускайте — они используют одни и те же порты (9090, 16686, 4317, 3000).
 
 ## Тестирование
 
