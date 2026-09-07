@@ -38,5 +38,6 @@
   <Folder Name="/UsersService/Presentation/">
     <Project Path="UsersService/Presentation/UsersService.Presentation.csproj" />
   </Folder>
+  <Project Path="EventsService.Tests/EventsService.Tests.csproj" />
   <Project Path="SharedContracts/SharedContracts.csproj" />
 </Solution>

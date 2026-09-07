@@ -5,6 +5,7 @@ namespace EventsService.Application.Services;
 public interface IEventService
 {
     Task<IEnumerable<Event>> GetAll();
+    Task<IEnumerable<Event>> GetTop10();
     Task<PaginatedResult<Event>> GetAll(
         string? title = null,
         DateTime? from = null,

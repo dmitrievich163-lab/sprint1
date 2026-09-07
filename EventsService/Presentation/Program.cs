@@ -1,8 +1,10 @@
 using System.Text;
 using Confluent.Kafka;
+using EventsService.Application.Cache;
 using EventsService.Application.Repositories;
 using EventsService.Application.Services;
 using EventsService.Infrastructure;
+using EventsService.Infrastructure.Cache;
 using EventsService.Infrastructure.DataAccess;
 using EventsService.Infrastructure.Kafka;
 using EventsService.Presentation;
@@ -10,6 +12,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using StackExchange.Redis;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +30,22 @@ builder.Services.AddDbContext<EventsDbContext>(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<IEventRepository, EventRepository>();
+
+// Redis cache
+var redisSection = builder.Configuration.GetSection(RedisOptions.SectionName);
+var redisOptions = redisSection.Get<RedisOptions>() ?? new RedisOptions();
+builder.Services.Configure<RedisOptions>(redisSection);
+var redisConfig = ConfigurationOptions.Parse(redisOptions.ConnectionString);
+redisConfig.AbortOnConnectFail = false;
+redisConfig.ConnectRetry = 5;
+redisConfig.ConnectTimeout = 5000;
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+builder.Services.AddSingleton(new CacheOptions
+{
+    EventTtl = TimeSpan.FromSeconds(redisOptions.EventCacheTtlSeconds),
+    TopEventsTtl = TimeSpan.FromSeconds(redisOptions.TopEventsCacheTtlSeconds)
+});
 
 // Kafka producer config (needed for topic initializer)
 var kafkaBootstrap = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";

@@ -29,6 +29,13 @@ public class EventsController : ControllerBase
         return Ok(events);
     }
 
+    [HttpGet("top")]
+    public async Task<IActionResult> GetTop10()
+    {
+        var events = await _eventService.GetTop10();
+        return Ok(events);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id)
     {

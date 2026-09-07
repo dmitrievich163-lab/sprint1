@@ -20,6 +20,17 @@ public class EventRepository : IEventRepository
         return await _context.Events.ToListAsync();
     }
 
+    public async Task<IEnumerable<Event>> GetTop10Async()
+    {
+        var events = await _context.Events.AsNoTracking().ToListAsync();
+        return events
+            .Where(e => e.TotalSeats > 0)
+            .OrderByDescending(e => (double)(e.TotalSeats - e.AvailableSeats) / e.TotalSeats)
+            .ThenBy(e => e.Title)
+            .Take(10)
+            .ToList();
+    }
+
     public async Task<PaginatedResult<Event>> GetAllAsync(string? title = null, DateTime? from = null, DateTime? to = null, int page = 1, int pageSize = 10)
     {
         var query = _context.Events.AsQueryable();
